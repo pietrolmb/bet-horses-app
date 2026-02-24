@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head><title>Admin Control</title></head>
+<body style="font-family: sans-serif; padding: 20px;">
+    <h1>Pannello Amministratore</h1>
+    <div style="background: #eee; padding: 15px;">
+        <h3>Gestione Fondi</h3>
+        <input type="text" id="target-user" placeholder="Username (es: admin)">
+        <input type="number" id="amount" placeholder="Quantità">
+        <button onclick="addMoney(true)">Aggiungi $$$</button>
+        <button onclick="addMoney(false)">Togli $$$</button>
+    </div>
+    <script>
+        function addMoney(isAdd) {
+            const u = document.getElementById('target-user').value;
+            const a = document.getElementById('amount').value;
+            // Qui manderemo il comando al server
+        }
+    </script>
+</body>
+</html>
