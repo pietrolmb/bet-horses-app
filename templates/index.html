@@ -30,3 +30,23 @@
     </script>
 </body>
 </html>
+// Caricamento suoni
+const sparo = new Audio('https://www.soundjay.com/mechanical/gun-shot-01.mp3');
+const folla = new Audio('https://www.soundjay.com/misc/sounds/crowd-cheer-01.mp3');
+const bip = new Audio('https://www.soundjay.com/button/beep-07.mp3');
+
+socket.on('timer_update', (t) => {
+    document.getElementById('timer').innerText = "Partenza in: " + t + "s";
+    if (t <= 3 && t > 0) bip.play(); // Bip negli ultimi 3 secondi
+});
+
+socket.on('race_start', () => {
+    sparo.play();
+    folla.play();
+    folla.loop = true; // La folla urla per tutta la gara
+});
+
+socket.on('update_data', (data) => {
+    folla.pause(); // La folla smette quando la gara finisce
+    folla.currentTime = 0;
+});
