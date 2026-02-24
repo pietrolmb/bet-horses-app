@@ -31,7 +31,7 @@ NOMI_B = ["Smoke", "Non Si Può", "Lester", "Muffin", "Pride", "Thunder", "Rocke
 def genera_nuova_corsa():
     min_h = data["settings"]["min_horses"]
     max_h = data["settings"]["max_horses"]
-    if min_h > max_h: min_h, max_h = max_h, min_h # Previene errori se l'admin inverte i numeri
+    if min_h > max_h: min_h, max_h = max_h, min_h 
     num = random.randint(min_h, max_h) 
     
     horses = []
@@ -146,7 +146,7 @@ def handle_bet(bet_data):
         race["bets"].append({
             "user": user, "type": tipo, "dettaglio": dettaglio, "amount": importo, "quota": quota,
             "h1": bet_data.get('h1'), "h2": bet_data.get('h2'), "h3": bet_data.get('h3'), "ordine": bet_data.get('ordine', True),
-            "esito": "In Attesa" # Nuovo campo per l'Admin
+            "esito": "In Attesa"
         })
         
         if data["settings"]["auto_timer"] and race["status"] == "waiting":
@@ -215,7 +215,7 @@ def start_race():
             elif not bet["ordine"] and (bet["h1"] in [id_1, id_2, id_3] and bet["h2"] in [id_1, id_2, id_3] and bet["h3"] in [id_1, id_2, id_3]): vinto = True
         
         if vinto:
-            bet["esito"] = "Vinta" # Aggiorna esito per Storico Admin
+            bet["esito"] = "Vinta"
             vincita = round(bet["amount"] * bet["quota"], 2)
             data["users"][bet["user"]]["wallet"] = round(data["users"][bet["user"]]["wallet"] + vincita, 2)
             data["users"][bet["user"]]["tot_vin"] += vincita
@@ -223,7 +223,7 @@ def start_race():
             totale_pagato_gara += vincita
             vincitori_gara.append({"user": bet["user"], "vincita": vincita, "dettaglio": bet["dettaglio"]})
         else:
-            bet["esito"] = "Persa" # Aggiorna esito per Storico Admin
+            bet["esito"] = "Persa"
             
     data["admin_stats"]["totale_pagato"] = round(data["admin_stats"]["totale_pagato"] + totale_pagato_gara, 2)
     data["admin_stats"]["bilancio"] = round(data["admin_stats"]["totale_incassato"] - data["admin_stats"]["totale_pagato"], 2)
