@@ -6,6 +6,7 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         body { background: #1a472a; color: white; font-family: sans-serif; text-align: center; margin: 0; padding-bottom: 50px;}
+        
         #pista-wrapper { width: 900px; height: 450px; position: relative; margin: 30px auto; }
         #pista-bg { width: 100%; height: 100%; background: #2d5a3c; border-radius: 50%; border: 90px solid #8B4513; box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px black; box-sizing: border-box; position: absolute; top: 0; left: 0;}
         .traguardo { position: absolute; bottom: 0; left: 50%; width: 6px; height: 90px; background: repeating-linear-gradient(to bottom, white 0, white 5px, red 5px, red 10px); z-index: 1; transform: translateX(-50%);}
@@ -54,9 +55,11 @@
         <div id="pista-bg"></div>
         <div class="traguardo"></div>
     </div>
+    
     <div id="timer-display">IN ATTESA DI GIOCATORI</div>
 
     <div id="game-interface">
+        
         <div id="login-section" class="login-box">
             <h3>🔑 Login Giocatore</h3>
             <input type="text" id="user-code" placeholder="NOME UTENTE"><br>
@@ -71,13 +74,13 @@
             </div>
             
             <div class="mie-scommesse">
-                <h4 style="margin-top:0; color: #3498db;">Le tue scommesse in questa gara:</h4>
-                <ul id="lista-mie-scommesse">Nessuna scommessa effettuata.</ul>
+                <h4 style="margin-top:0; color: #3498db;">Le tue scommesse per questa gara:</h4>
+                <ul id="lista-mie-scommesse"></ul>
             </div>
             
             <div id="scommesse-chiuse">
                 <h2 style="color:#e74c3c; font-size: 2.5em; margin:0;">🚫 SCOMMESSE CHIUSE 🚫</h2>
-                <p style="color:#aaa; font-size: 1.2em;">La gara è iniziata. In bocca al lupo!</p>
+                <p style="color:#aaa; font-size: 1.2em;">La gara sta per iniziare. In bocca al lupo!</p>
             </div>
 
             <div id="betting-forms-container">
@@ -90,7 +93,7 @@
                 <div id="tab-singola" class="tab-content active">
                     <p class="limite-txt" id="lim-singola">Max puntata: 0.00€</p>
                     <table>
-                        <thead><tr><th>Cavallo</th><th>Quota Vin/Piaz/Ult</th><th>Scommessa</th><th>Importo (€)</th><th>Azione</th></tr></thead>
+                        <thead><tr><th>Cavallo</th><th>Quota</th><th>Scommessa</th><th>Importo</th><th>Azione</th></tr></thead>
                         <tbody id="horse-table-body"></tbody>
                     </table>
                 </div>
@@ -100,10 +103,11 @@
                     <div style="background:#222; padding:20px; border-radius:8px; border:1px solid #555;">
                         <h3 style="margin-top:0; color:gold;">Scegli 2 Cavalli</h3>
                         <select id="acc-h1" onchange="calcAccoppiata()" style="padding:10px; margin:5px;"></select>
-                        <select id="acc-h2" onchange="calcAccoppiata()" style="padding:10px; margin:5px;"></select><br>
-                        <select id="acc-tipo" onchange="calcAccoppiata()" style="padding:10px; margin:10px 0;">
-                            <option value="ordine">In Ordine Esatto</option><option value="giro">A Giro</option>
-                        </select><br>
+                        <select id="acc-h2" onchange="calcAccoppiata()" style="padding:10px; margin:5px;"></select><br><br>
+                        <select id="acc-tipo" onchange="calcAccoppiata()" style="padding:10px;">
+                            <option value="ordine">In Ordine Esatto</option>
+                            <option value="giro">A Giro (Ordine Casuale)</option>
+                        </select><br><br>
                         <b>Quota: <span id="acc-quota" style="color:gold; font-size:20px;">0.00</span></b><br>
                         <input type="number" id="acc-amt" value="5" oninput="calcAccoppiata()" style="padding:10px; width:80px; margin-top:10px;"> €<br>
                         <span class="pot-win" id="acc-pot">Potenziale Vincita: 0.00€</span><br>
@@ -117,10 +121,11 @@
                         <h3 style="margin-top:0; color:gold;">Scegli 3 Cavalli</h3>
                         <select id="trio-h1" onchange="calcTrio()" style="padding:10px; margin:5px;"></select>
                         <select id="trio-h2" onchange="calcTrio()" style="padding:10px; margin:5px;"></select>
-                        <select id="trio-h3" onchange="calcTrio()" style="padding:10px; margin:5px;"></select><br>
-                        <select id="trio-tipo" onchange="calcTrio()" style="padding:10px; margin:10px 0;">
-                            <option value="ordine">In Ordine Esatto</option><option value="giro">A Giro</option>
-                        </select><br>
+                        <select id="trio-h3" onchange="calcTrio()" style="padding:10px; margin:5px;"></select><br><br>
+                        <select id="trio-tipo" onchange="calcTrio()" style="padding:10px;">
+                            <option value="ordine">In Ordine Esatto</option>
+                            <option value="giro">A Giro (Ordine Casuale)</option>
+                        </select><br><br>
                         <b>Quota: <span id="trio-quota" style="color:gold; font-size:20px;">0.00</span></b><br>
                         <input type="number" id="trio-amt" value="5" oninput="calcTrio()" style="padding:10px; width:80px; margin-top:10px;"> €<br>
                         <span class="pot-win" id="trio-pot">Potenziale Vincita: 0.00€</span><br>
@@ -131,8 +136,8 @@
             
             <div class="info-panel">
                 <div class="podio" style="border-right: 1px solid #555;">
-                    <h4>👥 Utenti Online:</h4><p id="utenti-online" style="color:#3498db; font-weight:bold;">Nessuno</p>
-                    <hr style="border-color:#444; margin:15px 0;">
+                    <h4>👥 Online: <span id="utenti-online" style="color:#3498db;"></span></h4>
+                    <hr>
                     <h4>🏆 Ultima Gara:</h4><p id="storico-podio">In attesa...</p>
                 </div>
                 <div class="podio">
@@ -145,55 +150,93 @@
 
     <script>
         const socket = io();
-        let myUser = ""; let myBalance = 0; 
-        let cavalliElements = {};
-        let audioAttivo = false; let setts = {}; let currentHorses = [];
+        let myUser = ""; 
+        let myBalance = 0; 
+        let cavalliElements = {}; 
+        let audioAttivo = false; 
+        let setts = {}; 
+        let currentHorses = [];
         
-        function switchTab(tabId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
-            event.target.classList.add('active');
+        function switchTab(tabId) { 
+            document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active')); 
+            document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active')); 
+            document.getElementById(tabId).classList.add('active'); 
+            event.target.classList.add('active'); 
         }
 
-        let ytPlayer; let ytReady = false; let ytFadeIn, ytFadeOut, ytLoopMonitor;
+        // --- MOTORE YOUTUBE CORAZZATO ---
+        let ytPlayer; 
+        let ytReady = false; 
+        let ytFadeIn, ytFadeOut, ytLoopMonitor;
         
-        function onYouTubeIframeAPIReady() {
-            ytPlayer = new YT.Player('yt-player', { height: '1', width: '1', videoId: 'L_LUpnjgPso', playerVars: { 'autoplay': 0, 'controls': 0 }, events: { 'onReady': () => { ytReady = true; } } });
+        function onYouTubeIframeAPIReady() { 
+            ytPlayer = new YT.Player('yt-player', { 
+                height: '1', width: '1', videoId: 'L_LUpnjgPso', 
+                playerVars: { 'autoplay': 0, 'controls': 0 }, 
+                events: { 'onReady': () => { ytReady = true; } } 
+            }); 
         }
         
-        function playYT(url, start, end, fade=false) {
-            if(!ytReady || !audioAttivo || !url) return;
-            clearInterval(ytFadeIn); clearInterval(ytFadeOut); clearInterval(ytLoopMonitor);
-            ytPlayer.loadVideoById({'videoId': url, 'startSeconds': start});
-            if(fade) {
-                ytPlayer.setVolume(0); ytPlayer.playVideo();
-                let v = 0; ytFadeIn = setInterval(()=>{ v+=5; if(v<=40) ytPlayer.setVolume(v); else clearInterval(ytFadeIn); }, 200);
-            } else { ytPlayer.setVolume(60); ytPlayer.playVideo(); }
+        function playYT(url, start, end, fade=false) { 
+            if(!ytReady || !audioAttivo || !url) return; 
             
-            if(end > 0) { ytLoopMonitor = setInterval(() => { if(ytPlayer.getCurrentTime() >= end) ytPlayer.seekTo(start); }, 500); }
+            // Pulisce tutti i processi precedenti per evitare conflitti
+            clearInterval(ytFadeIn); clearInterval(ytFadeOut); clearInterval(ytLoopMonitor); 
+            
+            ytPlayer.loadVideoById({'videoId': url, 'startSeconds': start}); 
+            
+            if(fade) { 
+                ytPlayer.setVolume(0); 
+                ytPlayer.playVideo(); 
+                let v = 0; 
+                ytFadeIn = setInterval(()=>{ 
+                    v += 5; 
+                    if(v <= 50) { if(ytPlayer.setVolume) ytPlayer.setVolume(v); }
+                    else clearInterval(ytFadeIn); 
+                }, 200); 
+            } else { 
+                ytPlayer.setVolume(60); 
+                ytPlayer.playVideo(); 
+            } 
+            
+            // Loop personalizzato
+            if(end > 0) { 
+                ytLoopMonitor = setInterval(() => { 
+                    if(ytPlayer.getCurrentTime && ytPlayer.getCurrentTime() >= end) {
+                        ytPlayer.seekTo(start); 
+                    }
+                }, 500); 
+            } 
         }
-
-        function stopYT() {
-            clearInterval(ytFadeIn); clearInterval(ytFadeOut); clearInterval(ytLoopMonitor);
-            if(ytReady && typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
+        
+        function stopYT() { 
+            clearInterval(ytFadeIn); clearInterval(ytFadeOut); clearInterval(ytLoopMonitor); 
+            if(ytReady && typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo(); 
         }
-
+        
         function fadeOutYT() {
-            clearInterval(ytFadeIn); clearInterval(ytLoopMonitor);
-            if(!ytReady || typeof ytPlayer.getVolume !== 'function') return;
+            clearInterval(ytFadeIn); clearInterval(ytLoopMonitor); 
+            if(!ytReady || typeof ytPlayer.getVolume !== 'function') return; 
             let v = ytPlayer.getVolume(); 
-            ytFadeOut = setInterval(() => { v -= 5; if(v > 0) { ytPlayer.setVolume(v); } else { clearInterval(ytFadeOut); ytPlayer.pauseVideo(); } }, 150);
+            ytFadeOut = setInterval(() => { 
+                v -= 5; 
+                if(v > 0) { ytPlayer.setVolume(v); } 
+                else { clearInterval(ytFadeOut); ytPlayer.pauseVideo(); } 
+            }, 150);
         }
 
         function annunciaVincitore(nome, numero) {
             if(!audioAttivo) return;
             const msg = new SpeechSynthesisUtterance(`Ha vinto il cavallo numero ${numero}, ${nome}!`);
             msg.lang = 'it-IT'; msg.rate = 1.0;
-            msg.onend = function() { if(setts.yt_win_enable) playYT(setts.yt_win_url, setts.yt_win_start, setts.yt_win_end, true); };
+            msg.onend = function() {
+                // Finito l'annuncio, parte la musica di trionfo
+                if(setts.yt_win_enable) playYT(setts.yt_win_url, setts.yt_win_start, setts.yt_win_end, true);
+            };
             window.speechSynthesis.speak(msg);
         }
 
+        // Suoni Sintetici Infallibili
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const galoppo = new Audio('https://actions.google.com/sounds/v1/foley/horse_gallop_dirt.ogg');
         galoppo.loop = true;
@@ -201,194 +244,273 @@
         function playTone(freq, duration, type='sine') {
             if(!audioAttivo) return;
             if(audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
-            osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-            osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + duration);
+            const osc = audioCtx.createOscillator(); 
+            const gain = audioCtx.createGain();
+            osc.type = type; 
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime); 
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination); 
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
         }
 
-        function toggleAudio() {
-            audioAttivo = !audioAttivo; const btn = document.getElementById('btn-audio');
-            if(audioAttivo) {
-                btn.style.background = "#27ae60"; btn.innerText = "🔊 Regia Audio Attiva";
+        function toggleAudio() { 
+            audioAttivo = !audioAttivo; 
+            const b = document.getElementById('btn-audio'); 
+            if(audioAttivo) { 
+                b.style.background = "#27ae60"; 
+                b.innerText = "🔊 Regia Audio Attiva"; 
                 if(audioCtx.state === 'suspended') audioCtx.resume();
-                playTone(400, 0.1);
+                playTone(400, 0.2);
+                
+                // Trucco sblocco YouTube immediato (Policy dei Browser)
                 if(ytReady) {
                     ytPlayer.setVolume(0); ytPlayer.playVideo();
                     setTimeout(() => {
-                        if(document.getElementById('timer-display').innerText.includes("PARTITI")) {
+                        const statusTesto = document.getElementById('timer-display').innerText;
+                        if(statusTesto.includes("PARTITI")) {
                             if(setts.yt_race_enable) playYT(setts.yt_race_url, setts.yt_race_start, setts.yt_race_end, false);
-                        } else {
+                        } else if(statusTesto.includes("ATTESA") || statusTesto.includes("CHIUSURA")) {
                             if(setts.yt_wait_enable) playYT(setts.yt_wait_url, setts.yt_wait_start, setts.yt_wait_end, true);
+                        } else {
+                            ytPlayer.pauseVideo();
                         }
                     }, 500);
                 }
-            } else { btn.style.background = "#e74c3c"; btn.innerText = "🔇 Suoni Disattivati"; stopYT(); }
+            } else { 
+                b.style.background = "#e74c3c"; 
+                b.innerText = "🔇 Audio Spento"; 
+                stopYT(); 
+            } 
         }
 
-        function eseguiLogin() {
-            const u = document.getElementById('user-code').value.trim(); const p = document.getElementById('user-pass').value.trim();
-            if(u !== "" && p !== "") socket.emit('tentativo_login', {user: u, password: p});
+        // --- GESTIONE DATI SERVER E SCOMMESSE ---
+        function eseguiLogin() { 
+            const u = document.getElementById('user-code').value.trim(); 
+            const p = document.getElementById('user-pass').value.trim(); 
+            if(u && p) socket.emit('tentativo_login', {user: u, password: p}); 
         }
-
-        socket.on('login_success', (res) => {
-            myUser = res.user; document.getElementById('login-section').style.display = 'none';
-            document.getElementById('betting-section').style.display = 'block';
-            document.getElementById('display-username').innerText = myUser; socket.emit('request_update');
+        
+        socket.on('login_success', (r) => { 
+            myUser = r.user; 
+            document.getElementById('login-section').style.display = 'none'; 
+            document.getElementById('betting-section').style.display = 'block'; 
+            document.getElementById('display-username').innerText = myUser; 
+            socket.emit('request_update'); 
         });
-        socket.on('login_error', (msg) => { alert("❌ " + msg); });
+        
+        socket.on('login_error', (m) => alert("❌ " + m));
 
         socket.on('update_data', (s) => {
-            const r = s.current_race; setts = s.settings; currentHorses = r.horses;
+            const r = s.current_race; 
+            setts = s.settings; 
+            currentHorses = r.horses;
             
-            if(myUser && s.users[myUser]) {
-                myBalance = parseFloat(s.users[myUser].wallet);
-                document.getElementById('display-balance').innerText = myBalance.toFixed(2);
+            if(myUser && s.users[myUser]) { 
+                myBalance = s.users[myUser].wallet; 
+                document.getElementById('display-balance').innerText = myBalance.toFixed(2); 
             }
             document.getElementById('utenti-online').innerText = s.online_users.length > 0 ? s.online_users.join(", ") : "Nessuno";
             
-            if(r.status === "racing" || r.status === "finished") {
-                document.getElementById('betting-forms-container').style.display = 'none';
-                document.getElementById('scommesse-chiuse').style.display = 'block';
-            } else {
-                document.getElementById('betting-forms-container').style.display = 'block';
-                document.getElementById('scommesse-chiuse').style.display = 'none';
+            // LA MAGIA DEL BANNER: Scompare istantaneamente tutto appena cambia lo stato
+            if(r.status === "racing" || r.status === "finished") { 
+                document.getElementById('betting-forms-container').style.display = 'none'; 
+                document.getElementById('scommesse-chiuse').style.display = 'block'; 
+            } else { 
+                document.getElementById('betting-forms-container').style.display = 'block'; 
+                document.getElementById('scommesse-chiuse').style.display = 'none'; 
             }
-            
+
+            // Mostra limiti per scheda
             document.getElementById('lim-singola').innerText = setts.max_bet_singola > 0 ? `Max: ${setts.max_bet_singola.toFixed(2)}€` : "Nessun Limite";
             document.getElementById('lim-acc').innerText = setts.max_bet_accoppiata > 0 ? `Max: ${setts.max_bet_accoppiata.toFixed(2)}€` : "Nessun Limite";
             document.getElementById('lim-trio').innerText = setts.max_bet_trio > 0 ? `Max: ${setts.max_bet_trio.toFixed(2)}€` : "Nessun Limite";
+
+            // Aggiorna mie giocate in corso
+            const mie = r.bets.filter(b => b.user === myUser); 
+            const ul = document.getElementById('lista-mie-scommesse'); 
+            ul.innerHTML = mie.length ? "" : "<li>Nessuna giocata in questa gara.</li>"; 
+            mie.forEach(b => ul.innerHTML += `<li>${b.amount.toFixed(2)}€ su <b>${b.dettaglio}</b> (Quota: ${b.quota})</li>`);
             
-            const mie = r.bets.filter(b => b.user === myUser);
-            const ulMie = document.getElementById('lista-mie-scommesse');
-            ulMie.innerHTML = mie.length === 0 ? "<li>Nessuna giocata.</li>" : "";
-            mie.forEach(b => ulMie.innerHTML += `<li>${b.amount.toFixed(2)}€ su <b>${b.dettaglio}</b> a quota ${b.quota}</li>`);
-
-            if(s.history.length > 0) {
-                const ult = s.history[s.history.length - 1];
-                document.getElementById('storico-podio').innerHTML = `<span style="color:gold;">1° ${ult.primo}</span><br><span style="color:silver;">2° ${ult.secondo}</span><br><span style="color:#cd7f32;">3° ${ult.terzo}</span>`;
-                const ulVinc = document.getElementById('storico-vincitori');
-                ulVinc.innerHTML = ult.vincitori.length === 0 ? "<li>Nessun vincitore.</li>" : "";
-                ult.vincitori.forEach(v => ulVinc.innerHTML += `<li><b>${v.user}</b> vince ${parseFloat(v.vincita).toFixed(2)}€ (${v.dettaglio})</li>`);
+            // Aggiorna storico
+            if(s.history.length) { 
+                const ult = s.history[s.history.length-1]; 
+                document.getElementById('storico-podio').innerHTML = `<span style="color:gold;">1° ${ult.primo}</span><br><span style="color:silver;">2° ${ult.secondo}</span><br><span style="color:#cd7f32;">3° ${ult.terzo}</span>`; 
+                const ulV = document.getElementById('storico-vincitori'); 
+                ulV.innerHTML = ult.vincitori.length ? "" : "<li>Nessun vincitore.</li>"; 
+                ult.vincitori.forEach(v => ulV.innerHTML += `<li><b>${v.user}</b> vince ${v.vincita.toFixed(2)}€</li>`); 
             }
-
-            const tbody = document.getElementById('horse-table-body');
-            let opts = ""; r.horses.forEach(h => opts += `<option value="${h.id}">N°${h.id} - ${h.nome}</option>`);
-            ['acc-h1', 'acc-h2', 'trio-h1', 'trio-h2', 'trio-h3'].forEach(id => {
-                if(document.getElementById(id).innerHTML === "") document.getElementById(id).innerHTML = opts;
-            });
-
-            tbody.innerHTML = "";
-            const pistaWrapper = document.getElementById('pista-wrapper');
-            if(r.status === "waiting" && r.bets.length === 0) {
-                document.querySelectorAll('.cavallo').forEach(e => e.remove()); cavalliElements = {};
-            }
-
+            
+            // Popola tabelle quote e tendine
+            const tbody = document.getElementById('horse-table-body'); 
+            tbody.innerHTML = ""; 
+            let opts = ""; 
+            
             r.horses.forEach((h, index) => {
-                const dis = r.status !== "waiting" && r.status !== "countdown" ? "disabled" : "";
-                tbody.innerHTML += `<tr>
+                opts += `<option value="${h.id}">N°${h.id} - ${h.nome}</option>`;
+                
+                tbody.innerHTML += `
+                <tr>
                     <td style="text-align:left;"><div style="background:${h.colore};width:20px;height:20px;border-radius:50%;display:inline-block;vertical-align:middle;"></div> <b>N°${h.id}</b> - ${h.nome}</td>
                     <td style="font-size:14px;">V:<b style="color:gold">${h.quota_v}</b> / P:<b style="color:#aaa">${h.quota_p}</b> / U:<b style="color:#e74c3c">${h.quota_u}</b></td>
-                    <td><select id="tipo-${h.id}" ${dis} onchange="calcSingola(${h.id})" style="padding:5px;"><option value="Vincente">Vincente</option><option value="Piazzato">Piazzato</option><option value="Ultimo">Ultimo</option></select></td>
-                    <td><input type="number" id="amt-${h.id}" style="width:60px" value="5" oninput="calcSingola(${h.id})" ${dis}><br><span class="pot-win" id="pot-${h.id}">Pot: 0.00€</span></td>
-                    <td><button class="btn-bet" onclick="puntaSingola(${h.id})" ${dis}>PUNTA</button></td>
+                    <td><select id="tipo-${h.id}" onchange="calcSingola(${h.id})" style="padding:5px;"><option value="Vincente">Vincente</option><option value="Piazzato">Piazzato</option><option value="Ultimo">Ultimo</option></select></td>
+                    <td><input type="number" id="amt-${h.id}" value="5" style="width:60px" oninput="calcSingola(${h.id})"><br><span id="pot-${h.id}" class="pot-win"></span></td>
+                    <td><button class="btn-bet" onclick="puntaSingola(${h.id})">PUNTA</button></td>
                 </tr>`;
-                setTimeout(()=>calcSingola(h.id), 100);
                 
-                if(!cavalliElements[h.id] && r.status === "waiting") {
-                    const d = document.createElement('div'); d.className = 'cavallo'; d.style.backgroundColor = h.colore; d.innerText = h.id;
-                    pistaWrapper.appendChild(d); cavalliElements[h.id] = d;
-                    const centerX = 450; const centerY = 225; const laneX = 435 - (index * 6); const laneY = 210 - (index * 6); 
-                    d.style.left = (centerX + laneX * Math.cos(Math.PI/2) - 11) + 'px'; d.style.top = (centerY + laneY * Math.sin(Math.PI/2) - 11) + 'px';
+                // Animazione matematica perfetta sulla linea di partenza
+                if(!cavalliElements[h.id] && r.status === "waiting") { 
+                    const d = document.createElement('div'); 
+                    d.className = 'cavallo'; 
+                    d.style.backgroundColor = h.colore; 
+                    d.innerText = h.id; 
+                    document.getElementById('pista-wrapper').appendChild(d); 
+                    cavalliElements[h.id] = d; 
+                    
+                    const cx = 450, cy = 225, lx = 435-(index*6), ly = 210-(index*6); 
+                    d.style.left = (cx + lx * Math.cos(Math.PI/2) - 11) + 'px'; 
+                    d.style.top = (cy + ly * Math.sin(Math.PI/2) - 11) + 'px'; 
                 }
             });
 
+            if(r.status === "waiting" && r.bets.length === 0) { 
+                document.querySelectorAll('.cavallo').forEach(e=>e.remove()); 
+                cavalliElements = {}; 
+            }
+
+            ['acc-h1','acc-h2','trio-h1','trio-h2','trio-h3'].forEach(id => { 
+                if(document.getElementById(id).innerHTML === "") document.getElementById(id).innerHTML = opts; 
+            });
+            
+            // Forza ricalcolo vincite potenziali sulle schede all'apertura
+            r.horses.forEach(h => calcSingola(h.id)); 
+            calcAccoppiata(); 
+            calcTrio();
+            
             if(r.status === "waiting") {
-                document.getElementById('timer-display').innerText = s.settings.auto_timer ? "IN ATTESA DI SCOMMESSE" : "ATTESA PARTENZA (Manuale)";
+                document.getElementById('timer-display').innerText = "IN ATTESA DI GIOCATORI";
+                // Ripristina la musica d'attesa se la gara era finita
                 if(audioAttivo && setts.yt_wait_enable && (!ytPlayer || ytPlayer.getPlayerState() !== 1)) {
-                    playYT(setts.yt_wait_url, setts.yt_wait_start, setts.yt_wait_end, true);
+                    playYT(setts.yt_wait_url, setts.yt_wait_start, setts.yt_wait_end, true); 
                 }
             }
-            calcAccoppiata(); calcTrio();
         });
 
+        // --- CALCOLO VINCITE POTENZIALI ---
         function getH(id) { return currentHorses.find(h => h.id == id); }
         
-        function calcSingola(id) {
-            const h = getH(id); const t = document.getElementById('tipo-'+id).value; const a = parseFloat(document.getElementById('amt-'+id).value)||0;
-            let q = t==="Piazzato"?h.quota_p : t==="Ultimo"?h.quota_u : h.quota_v; document.getElementById('pot-'+id).innerText = `Pot: ${(a*q).toFixed(2)}€`;
+        function calcSingola(id) { 
+            const h = getH(id); 
+            const t = document.getElementById('tipo-'+id).value; 
+            const a = parseFloat(document.getElementById('amt-'+id).value)||0; 
+            let q = t==="Piazzato"?h.quota_p:t==="Ultimo"?h.quota_u:h.quota_v; 
+            document.getElementById('pot-'+id).innerText = `Potenziale: ${(a*q).toFixed(2)}€`; 
         }
-        function calcAccoppiata() {
-            const h1 = getH(document.getElementById('acc-h1').value); const h2 = getH(document.getElementById('acc-h2').value);
-            const ord = document.getElementById('acc-tipo').value === "ordine"; const a = parseFloat(document.getElementById('acc-amt').value)||0;
+        function calcAccoppiata() { 
+            const h1=getH(document.getElementById('acc-h1').value);
+            const h2=getH(document.getElementById('acc-h2').value); 
+            const ord=document.getElementById('acc-tipo').value==="ordine";
+            const a=parseFloat(document.getElementById('acc-amt').value)||0; 
             if(h1.id === h2.id) { document.getElementById('acc-quota').innerText = "Errore"; return; }
-            let q = (h1.quota_v * h2.quota_v * 0.8).toFixed(2); if(!ord) q = (q/2).toFixed(2);
-            document.getElementById('acc-quota').innerText = q; document.getElementById('acc-pot').innerText = `Vincita Potenziale: ${(a*q).toFixed(2)}€`;
+            let q = (h1.quota_v*h2.quota_v*0.7).toFixed(2); 
+            if(!ord) q=(q/2).toFixed(2); 
+            document.getElementById('acc-quota').innerText = q; 
+            document.getElementById('acc-pot').innerText = `Potenziale: ${(a*q).toFixed(2)}€`; 
             document.getElementById('btn-acc').disabled = (h1.id === h2.id);
         }
-        function calcTrio() {
-            const h1 = getH(document.getElementById('trio-h1').value); const h2 = getH(document.getElementById('trio-h2').value); const h3 = getH(document.getElementById('trio-h3').value);
-            const ord = document.getElementById('trio-tipo').value === "ordine"; const a = parseFloat(document.getElementById('trio-amt').value)||0;
+        function calcTrio() { 
+            const h1=getH(document.getElementById('trio-h1').value);
+            const h2=getH(document.getElementById('trio-h2').value);
+            const h3=getH(document.getElementById('trio-h3').value); 
+            const ord=document.getElementById('trio-tipo').value==="ordine";
+            const a=parseFloat(document.getElementById('trio-amt').value)||0; 
             if(h1.id===h2.id || h1.id===h3.id || h2.id===h3.id) { document.getElementById('trio-quota').innerText = "Errore"; return; }
-            let q = (h1.quota_v * h2.quota_v * h3.quota_v * 0.7).toFixed(2); if(!ord) q = (q/6).toFixed(2);
-            document.getElementById('trio-quota').innerText = q; document.getElementById('trio-pot').innerText = `Vincita Potenziale: ${(a*q).toFixed(2)}€`;
+            let q = (h1.quota_v*h2.quota_v*h3.quota_v*0.6).toFixed(2); 
+            if(!ord) q=(q/6).toFixed(2); 
+            document.getElementById('trio-quota').innerText = q; 
+            document.getElementById('trio-pot').innerText = `Potenziale: ${(a*q).toFixed(2)}€`; 
             document.getElementById('btn-trio').disabled = (h1.id===h2.id || h1.id===h3.id || h2.id===h3.id);
         }
 
-        function preCheck(amt) { if(amt > myBalance) { alert("❌ Saldo insufficiente! Ricarica in ricevitoria."); return false; } return true; }
-
-        function puntaSingola(id) {
-            const a = parseFloat(document.getElementById('amt-'+id).value); const t = document.getElementById('tipo-'+id).value;
-            const h = getH(id); let q = t==="Piazzato"?h.quota_p : t==="Ultimo"?h.quota_u : h.quota_v;
-            if(preCheck(a) && a > 0) socket.emit('place_bet', {user: myUser, amount: a, type: t, horse_id: id, quota: q, dettaglio: `N°${id} (${t})`, h1: id});
-        }
-        function puntaAccoppiata() {
-            const id1 = parseInt(document.getElementById('acc-h1').value); const id2 = parseInt(document.getElementById('acc-h2').value);
-            const ord = document.getElementById('acc-tipo').value === "ordine"; const a = parseFloat(document.getElementById('acc-amt').value);
-            const q = parseFloat(document.getElementById('acc-quota').innerText); const dett = `Accoppiata ${ord?'Ordine':'Giro'} (N°${id1}-N°${id2})`;
-            if(preCheck(a) && a > 0) socket.emit('place_bet', {user: myUser, amount: a, type: "Accoppiata", horse_id: id1, quota: q, dettaglio: dett, h1: id1, h2: id2, ordine: ord});
-        }
-        function puntaTrio() {
-            const id1 = parseInt(document.getElementById('trio-h1').value); const id2 = parseInt(document.getElementById('trio-h2').value); const id3 = parseInt(document.getElementById('trio-h3').value);
-            const ord = document.getElementById('trio-tipo').value === "ordine"; const a = parseFloat(document.getElementById('trio-amt').value);
-            const q = parseFloat(document.getElementById('trio-quota').innerText); const dett = `Trio ${ord?'Ordine':'Giro'} (N°${id1}-N°${id2}-N°${id3})`;
-            if(preCheck(a) && a > 0) socket.emit('place_bet', {user: myUser, amount: a, type: "Trio", horse_id: id1, quota: q, dettaglio: dett, h1: id1, h2: id2, h3:id3, ordine: ord});
+        function preCheck(amt) { 
+            if(amt > myBalance) { alert("❌ Saldo insufficiente! Ricarica il tuo conto in cassa."); return false; } 
+            return true; 
         }
 
-        socket.on('timer_update', (t) => { document.getElementById('timer-display').innerText = "CHIUSURA IN: " + t + "s"; });
+        function puntaSingola(id) { 
+            const a = parseFloat(document.getElementById('amt-'+id).value); 
+            if(!preCheck(a)) return; 
+            const t = document.getElementById('tipo-'+id).value, h = getH(id); 
+            let q = t==="Piazzato"?h.quota_p:t==="Ultimo"?h.quota_u:h.quota_v; 
+            socket.emit('place_bet', {user:myUser, amount:a, type:t, horse_id:id, quota:q, dettaglio:`N°${id} (${t})`, h1:id}); 
+        }
+        function puntaAccoppiata() { 
+            const id1=parseInt(document.getElementById('acc-h1').value), id2=parseInt(document.getElementById('acc-h2').value);
+            const a=parseFloat(document.getElementById('acc-amt').value); 
+            if(!preCheck(a)) return; 
+            const q=parseFloat(document.getElementById('acc-quota').innerText);
+            const ord=document.getElementById('acc-tipo').value==="ordine"; 
+            socket.emit('place_bet', {user:myUser, amount:a, type:"Accoppiata", horse_id:id1, quota:q, dettaglio:`Accoppiata ${ord?'Ordine':'Giro'} (N°${id1}-N°${id2})`, h1:id1, h2:id2, ordine:ord}); 
+        }
+        function puntaTrio() { 
+            const id1=parseInt(document.getElementById('trio-h1').value), id2=parseInt(document.getElementById('trio-h2').value), id3=parseInt(document.getElementById('trio-h3').value);
+            const a=parseFloat(document.getElementById('trio-amt').value); 
+            if(!preCheck(a)) return; 
+            const q=parseFloat(document.getElementById('trio-quota').innerText);
+            const ord=document.getElementById('trio-tipo').value==="ordine"; 
+            socket.emit('place_bet', {user:myUser, amount:a, type:"Trio", horse_id:id1, quota:q, dettaglio:`Trio ${ord?'Ordine':'Giro'} (N°${id1}-N°${id2}-N°${id3})`, h1:id1, h2:id2, h3:id3, ordine:ord}); 
+        }
 
-        socket.on('race_start', () => {
-            document.getElementById('timer-display').innerText = "🐎 PARTITI! 🐎";
+        // --- RICEZIONE EVENTI CORSA ---
+        socket.on('timer_update', (t) => { 
+            document.getElementById('timer-display').innerText = "CHIUSURA IN: " + t + "s"; 
+            if(t <= 5 && t > 0) playTone(600, 0.1, 'square');
+        });
+        
+        socket.on('race_start', () => { 
+            document.getElementById('timer-display').innerText = "🐎 PARTITI! 🐎"; 
+            
+            // LA REGIA: Stoppa subito la musica d'attesa e spara la musica della gara!
             stopYT(); 
-            if(setts.yt_race_enable) playYT(setts.yt_race_url, setts.yt_race_start, setts.yt_race_end, false);
+            if(setts.yt_race_enable) playYT(setts.yt_race_url, setts.yt_race_start, setts.yt_race_end, false); 
+            
             if(audioAttivo) { galoppo.volume = 0.5; galoppo.play(); }
         });
-
-        socket.on('race_update', (pos) => {
+        
+        socket.on('race_update', (pos) => { 
             let index = 0;
-            Object.keys(pos).forEach(id => {
-                const centerX = 450; const centerY = 225; const laneX = 435 - (index * 6); const laneY = 210 - (index * 6);
-                const x = centerX + laneX * Math.cos(pos[id] + Math.PI / 2); const y = centerY + laneY * Math.sin(pos[id] + Math.PI / 2);
-                if(cavalliElements[id]) { cavalliElements[id].style.left = (x - 11) +'px'; cavalliElements[id].style.top = (y - 11) +'px'; }
+            Object.keys(pos).forEach(id => { 
+                const cx = 450, cy = 225, lx = 435 - (index * 6), ly = 210 - (index * 6); 
+                const x = cx + lx * Math.cos(pos[id] + Math.PI/2);
+                const y = cy + ly * Math.sin(pos[id] + Math.PI/2); 
+                if(cavalliElements[id]) { 
+                    cavalliElements[id].style.left = (x - 11) + 'px'; 
+                    cavalliElements[id].style.top = (y - 11) + 'px'; 
+                } 
                 index++;
-            });
+            }); 
         });
-
-        socket.on('race_finished', (risultato) => {
-            document.getElementById('timer-display').innerText = "🏁 GARA CONCLUSA! 🏁";
+        
+        socket.on('race_finished', (res) => { 
+            document.getElementById('timer-display').innerText = "🏁 GARA CONCLUSA! 🏁"; 
+            
+            // Ferma l'audio di gara sfumandolo
             fadeOutYT(); 
+            
             if(audioAttivo) { galoppo.pause(); galoppo.currentTime = 0; }
-            document.getElementById('audio-folla').play(); setTimeout(()=>document.getElementById('audio-folla').pause(), 4000);
+            document.getElementById('audio-folla').play(); 
+            setTimeout(()=>document.getElementById('audio-folla').pause(), 4000);
             
-            annunciaVincitore(risultato.primo_nome, risultato.primo_id);
+            // Lo speaker annuncia il vincitore e fa partire la canzone YouTube di Trionfo
+            annunciaVincitore(res.primo_nome, res.primo_id);
             
-            let miaVincitaTotale = 0;
-            risultato.vincitori.forEach(v => { if(v.user === myUser) miaVincitaTotale += v.vincita; });
-            if(miaVincitaTotale > 0) {
-                document.getElementById('win-amount').innerText = `Hai vinto ${miaVincitaTotale.toFixed(2)}€!`;
-                document.getElementById('win-banner').style.display = 'block';
-                setTimeout(() => { document.getElementById('win-banner').style.display = 'none'; }, 9000);
-            }
+            let vTot = 0; 
+            res.vincitori.forEach(v => { if(v.user === myUser) vTot += v.vincita; }); 
+            if(vTot > 0){ 
+                document.getElementById('win-amount').innerText = `Hai Vinto ${vTot.toFixed(2)}€!`; 
+                document.getElementById('win-banner').style.display='block'; 
+                setTimeout(()=>document.getElementById('win-banner').style.display='none', 9000); 
+            } 
         });
     </script>
 </body>
