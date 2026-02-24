@@ -15,10 +15,14 @@ data = {
     "current_race": {"status": "waiting", "horses": [], "bets": [], "timer": 0},
     "history": [],
     "settings": {
-        "auto_timer": True, "max_bet": 0.0, "timer_duration": 60,
-        "yt_wait_url": "L_LUpnjgPso", "yt_wait_start": 0,    # Es: Musica ascensore/Jazz
-        "yt_race_url": "XqEQJe1kRHA", "yt_race_start": 23,   # Es: Musica epica corsa
-        "yt_win_url": "E3m-XH1Kij0",  "yt_win_start": 54     # Es: Rocky
+        "auto_timer": True, 
+        "max_bet_singola": 0.0,  # 0 = Nessun limite
+        "max_bet_accoppiata": 0.0,
+        "max_bet_trio": 0.0,
+        "timer_duration": 60,
+        "yt_wait_url": "L_LUpnjgPso", "yt_wait_start": 0,    
+        "yt_race_url": "XqEQJe1kRHA", "yt_race_start": 23,   
+        "yt_win_url": "E3m-XH1Kij0",  "yt_win_start": 54     
     }
 }
 
@@ -26,11 +30,14 @@ NOMI_A = ["Western", "Più Forte", "Lord", "Stud", "National", "Golden", "Pocket
 NOMI_B = ["Smoke", "Non Si Può", "Lester", "Muffin", "Pride", "Thunder", "Rocket", "Delight", "Man", "King"]
 
 def genera_nuova_corsa():
-    num = random.randint(8, 12)
+    num = random.randint(6, 9) # MENO CAVALLI = QUOTE PIU' BASSE
     horses = []
     nomi = random.sample([f"{a} {b}" for a in NOMI_A for b in NOMI_B], num)
     
-    raw_weights = [random.uniform(10, 100) for _ in range(num)]
+    # Crea un super favorito (peso molto alto) e gli altri normali
+    raw_weights = [random.uniform(70, 150)] + [random.uniform(10, 60) for _ in range(num - 1)]
+    random.shuffle(raw_weights) # Mischia l'ordine così il favorito non è sempre il N°1
+    
     tot_weight = sum(raw_weights)
     p_vittoria = [w / tot_weight for w in raw_weights]
     
@@ -38,12 +45,12 @@ def genera_nuova_corsa():
     tot_inv = sum(inv_weights)
     p_ultimo = [iw / tot_inv for iw in inv_weights]
     
-    house_edge = 1.18 
+    house_edge = 1.25 # Lavagna al 25% (Abbassa le quote per proteggere il banco)
 
     for i in range(num):
-        q_v = max(1.10, round(1 / (p_vittoria[i] * house_edge), 2))
-        q_p = max(1.05, round(q_v / 3.2, 2))
-        q_u = max(1.10, round(1 / (p_ultimo[i] * house_edge), 2))
+        q_v = max(1.05, round(1 / (p_vittoria[i] * house_edge), 2))
+        q_p = max(1.05, round(q_v / 3.0, 2))
+        q_u = max(1.05, round(1 / (p_ultimo[i] * house_edge), 2))
 
         horses.append({
             "id": i + 1, "nome": nomi[i], "prob_vittoria": p_vittoria[i], 
@@ -82,7 +89,6 @@ def handle_wallet(req):
 def update_settings(req):
     for key in req:
         if key in data["settings"]:
-            # Converte in float o int a seconda del tipo originale
             data["settings"][key] = type(data["settings"][key])(req[key])
     socketio.emit('update_data', data)
 
@@ -112,24 +118,28 @@ def handle_bet(bet_data):
     user = bet_data['user']
     importo = float(bet_data['amount'])
     tipo = bet_data['type']
-    dettaglio = bet_data['dettaglio'] # Es: "N°4", "N°4-N°2 (Ordine)", ecc.
+    dettaglio = bet_data['dettaglio']
     quota = float(bet_data['quota'])
     
     if user not in data["users"] or data["users"][user]["wallet"] < importo:
         emit('login_error', "Saldo insufficiente!")
         return
 
-    # Controllo LIMITE SULLA SINGOLA QUOTA (Somma delle giocate uguali dello stesso utente)
-    max_b = data["settings"]["max_bet"]
-    if max_b > 0:
+    # Trova il limite corretto per la tipologia di scommessa
+    limit = 0.0
+    if tipo in ["Vincente", "Piazzato", "Ultimo"]: limit = data["settings"]["max_bet_singola"]
+    elif tipo == "Accoppiata": limit = data["settings"]["max_bet_accoppiata"]
+    elif tipo == "Trio": limit = data["settings"]["max_bet_trio"]
+
+    if limit > 0:
         giocate_precedenti = sum(b['amount'] for b in race['bets'] if b['user'] == user and b['dettaglio'] == dettaglio and b['type'] == tipo)
-        if giocate_precedenti + importo > max_b:
-            emit('login_error', f"Limite superato! Hai già puntato {giocate_precedenti}€ su questa opzione. Massimo consentito: {max_b}€.")
+        if giocate_precedenti + importo > limit:
+            emit('login_error', f"Limite superato! Hai già puntato {giocate_precedenti}€ su questa opzione. Massimo consentito: {limit}€.")
             return
             
     if race["status"] in ["waiting", "countdown"]:
         data["users"][user]["wallet"] = round(data["users"][user]["wallet"] - importo, 2)
-        data["users"][user]["tot_per"] += importo # Segna come spesa iniziale
+        data["users"][user]["tot_per"] += importo 
         data["admin_stats"]["totale_incassato"] = round(data["admin_stats"]["totale_incassato"] + importo, 2)
         
         race["bets"].append({
@@ -157,24 +167,17 @@ def start_race():
     race["status"] = "racing"
     socketio.emit('race_start')
     
-    # ---------------------------------------------------------
-    # ALGORITMO GARA A TEMPO FISSO (Esattamente 30 secondi)
-    # ---------------------------------------------------------
-    steps = 250 # 250 step * 0.12s = 30 secondi esatti
+    steps = 250 
     raw_progress = {h["id"]: [0]*steps for h in race["horses"]}
     
-    # 1. Simula i passi casuali (caos + probabilità)
     for h in race["horses"]:
         for step in range(steps):
             passo = random.uniform(0.005, 0.085) + (h["prob_vittoria"] * 0.012)
             raw_progress[h["id"]][step] = passo
             
-    # 2. Calcola la distanza totale e trova il vincitore
     totals = {hid: sum(raw_progress[hid]) for hid in raw_progress}
     winner_id = max(totals, key=totals.get)
     max_dist = totals[winner_id]
-    
-    # 3. Scala matematica: moltiplica tutto in modo che il vincitore faccia esattamente 2*PI (1 Giro)
     scale = (2 * math.pi) / max_dist
     
     race_frames = []
@@ -184,13 +187,10 @@ def start_race():
             current_pos[h["id"]] += (raw_progress[h["id"]][step] * scale)
         race_frames.append(current_pos.copy())
         
-    # 4. Riproduzione per gli utenti
     for frame in race_frames:
         socketio.emit('race_update', frame)
         socketio.sleep(0.12)
-    # ---------------------------------------------------------
 
-    # Calcolo Classifica Finale
     classifica = sorted(race["horses"], key=lambda h: frame[h["id"]], reverse=True)
     id_1 = classifica[0]["id"]
     id_2 = classifica[1]["id"]
@@ -200,7 +200,6 @@ def start_race():
     vincitori_gara = []
     totale_pagato_gara = 0.0
     
-    # Calcolo Vincite Complesse
     for bet in race["bets"]:
         vinto = False
         if bet["type"] == "Vincente" and bet["h1"] == id_1: vinto = True
@@ -217,7 +216,7 @@ def start_race():
             vincita = round(bet["amount"] * bet["quota"], 2)
             data["users"][bet["user"]]["wallet"] = round(data["users"][bet["user"]]["wallet"] + vincita, 2)
             data["users"][bet["user"]]["tot_vin"] += vincita
-            data["users"][bet["user"]]["tot_per"] -= bet["amount"] # Restituisce i soldi spesi per la scommessa vinta dalle perdite
+            data["users"][bet["user"]]["tot_per"] -= bet["amount"] 
             totale_pagato_gara += vincita
             vincitori_gara.append({"user": bet["user"], "vincita": vincita, "dettaglio": bet["dettaglio"]})
             
@@ -236,7 +235,7 @@ def start_race():
     data["history"].append(risultato)
     
     socketio.emit('race_finished', risultato)
-    socketio.sleep(15) # Tempo per la canzone di vittoria
+    socketio.sleep(15) 
     
     race["status"] = "waiting"
     race["horses"] = genera_nuova_corsa()
