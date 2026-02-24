@@ -25,7 +25,7 @@
         table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white;}
         th, td { padding: 8px; border: 1px solid #ddd; font-size:14px; text-align: left; }
         
-        /* PISTA ADMIN */
+        /* PISTA ADMIN - Metà esatta della pista giocatori, SENZA ZOOM */
         #pista-wrapper { width: 450px; height: 225px; position: relative; margin: 20px auto; }
         #pista-bg { 
             width: 100%; height: 100%; background: #2d5a3c; border-radius: 50%; 
@@ -85,14 +85,15 @@
                         <option value="false">✋ Manuale: La gara parte solo cliccando "Forza Partenza"</option>
                     </select>
 
-                    <p style="margin-top:0;"><b>Limiti Puntata Massima (€) - Metti 0 per Infiniti</b></p>
+                    <p style="margin-top:0;"><b>Limiti Puntata Massima (€) - Metti 0 per Nessun Limite</b></p>
                     Singola: <input type="number" id="max-s" style="width:60px;"> 
                     Accoppiata: <input type="number" id="max-a" style="width:60px;"> 
                     Trio: <input type="number" id="max-t" style="width:60px;">
                     
                     <hr style="margin:15px 0; border:1px solid #ddd;">
                     <p><b>Impostazioni Corsa</b></p>
-                    Timer Partenza: <input type="number" id="set-timer" style="width:60px;"> sec. <br><br>
+                    Timer Attesa (sec): <input type="number" id="set-timer" style="width:60px;"> |
+                    Durata Corsa (sec): <input type="number" id="set-race-dur" style="width:60px;"><br><br>
                     Numero Cavalli: Da <input type="number" id="min-h" style="width:40px;"> a <input type="number" id="max-h" style="width:40px;">
                     
                     <hr style="margin:15px 0; border:1px solid #ddd;">
@@ -143,6 +144,7 @@
     <script>
         const socket = io();
         let cavalliElements = {};
+        let currentHorses = [];
         
         // LOGIN ADMIN
         function loginAdmin() { 
@@ -169,7 +171,6 @@
         }
         
         function salvaSetts() { 
-            // Estrae ID da eventuale link youtube
             const ext = (v) => { const m = v.match(/(?:v=|youtu\.be\/)([^&]+)/); return m ? m[1] : v; };
             
             socket.emit('admin_update_settings', { 
@@ -178,6 +179,7 @@
                 max_bet_accoppiata: parseFloat(document.getElementById('max-a').value)||0, 
                 max_bet_trio: parseFloat(document.getElementById('max-t').value)||0, 
                 timer_duration: parseInt(document.getElementById('set-timer').value)||60, 
+                race_duration: parseInt(document.getElementById('set-race-dur').value)||30, 
                 min_horses: parseInt(document.getElementById('min-h').value)||6, 
                 max_horses: parseInt(document.getElementById('max-h').value)||9, 
                 yt_wait_enable: document.getElementById('y-w-e').checked, 
@@ -200,6 +202,8 @@
         
         // AGGIORNAMENTO DATI
         socket.on('update_data', (s) => {
+            currentHorses = s.current_race.horses;
+            
             // Statistiche
             document.getElementById('inc').innerText = parseFloat(s.admin_stats.totale_incassato).toFixed(2);
             document.getElementById('pag').innerText = parseFloat(s.admin_stats.totale_pagato).toFixed(2);
@@ -211,7 +215,7 @@
             for(let n in s.users){ 
                 let u = s.users[n]; 
                 const onl = s.online_users.includes(n) ? "🟢" : "⚪";
-                tbU.innerHTML += `<tr><td><b>${n}</b></td><td>${onl}</td><td><b style="color:green;">${u.wallet.toFixed(2)}€</b></td><td>${u.tot_dep.toFixed(2)}€</td><td><span style="color:#27ae60;">+${u.tot_vin.toFixed(2)}€</span></td><td><span style="color:#c0392b;">-${u.tot_per.toFixed(2)}€</span></td></tr>`; 
+                tbU.innerHTML += `<tr><td><b>${n}</b> ${onl}</td><td><b style="color:green;">${u.wallet.toFixed(2)}€</b></td><td>${u.tot_dep.toFixed(2)}€</td><td><span style="color:#27ae60;">+${u.tot_vin.toFixed(2)}€</span></td><td><span style="color:#c0392b;">-${u.tot_per.toFixed(2)}€</span></td></tr>`; 
             }
             
             // Tabella Scommesse in Corso
@@ -252,6 +256,7 @@
                 document.getElementById('max-a').value = s.settings.max_bet_accoppiata;
                 document.getElementById('max-t').value = s.settings.max_bet_trio;
                 document.getElementById('set-timer').value = s.settings.timer_duration;
+                document.getElementById('set-race-dur').value = s.settings.race_duration;
                 document.getElementById('min-h').value = s.settings.min_horses;
                 document.getElementById('max-h').value = s.settings.max_horses;
                 
@@ -276,6 +281,7 @@
                     pistaWrapper.appendChild(d); 
                     cavalliElements[h.id] = d;
                     
+                    // Ricalcolo pista dimezzato rispetto alla pagina utente
                     const centerX = 225; const centerY = 112.5; 
                     const laneX = 217.5 - (index * 3); const laneY = 105 - (index * 3);
                     const startX = centerX + laneX * Math.cos(Math.PI / 2);
@@ -290,11 +296,10 @@
         socket.on('race_update', (pos) => {
             Object.keys(pos).forEach(id => {
                 const centerX = 225; const centerY = 112.5; 
-                // Cerca l'indice del cavallo per la corsia corretta (trucchetto per Admin)
                 let index = 0;
-                const elems = document.querySelectorAll('.cavallo');
-                for(let i=0; i<elems.length; i++) {
-                    if(elems[i].innerText === id) { index = i; break; }
+                // Mappa correttamente l'indice
+                for(let i=0; i<currentHorses.length; i++) {
+                    if(currentHorses[i].id == id) { index = i; break; }
                 }
                 
                 const laneX = 217.5 - (index * 3); const laneY = 105 - (index * 3);
