@@ -5,13 +5,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
         body { background: #1a472a; color: white; font-family: sans-serif; text-align: center; margin: 0; padding-bottom: 50px;}
-        
-        /* PISTA SUPER ALLARGATA */
-        #pista-container { 
-            width: 900px; height: 450px; background: #2d5a3c; border-radius: 250px; 
-            position: relative; border: 90px solid #8B4513; margin: 30px auto; 
-            box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px black; box-sizing: border-box; 
-        }
+        #pista-container { width: 900px; height: 450px; background: #2d5a3c; border-radius: 250px; position: relative; border: 90px solid #8B4513; margin: 30px auto; box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px black; box-sizing: border-box; }
         .traguardo { position: absolute; bottom: -90px; left: 50%; width: 6px; height: 90px; background: repeating-linear-gradient(to bottom, white 0, white 5px, red 5px, red 10px); z-index: 1; transform: translateX(-50%);}
         .cavallo { width: 22px; height: 22px; border-radius: 50%; position: absolute; border: 2px solid #fff; font-size: 11px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 10; transition: all 0.12s linear;}
         
@@ -26,13 +20,11 @@
         .podio { text-align: left; color: #ddd; flex: 1; padding: 10px;}
         .btn-audio { background: #e74c3c; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 10px;}
         .mie-scommesse { background: #2c3e50; padding: 10px; border-radius: 8px; margin-top: 15px; text-align: left; border: 1px solid #3498db; }
+        .limite-txt { color: #e74c3c; font-size: 14px; margin-bottom: 10px; font-weight: bold; display: none;}
     </style>
 </head>
 <body>
-    
-    <audio id="audio-folla" src="https://www.myinstants.com/media/sounds/crowd-cheering.mp3" preload="auto" loop crossorigin="anonymous"></audio>
-
-    <button class="btn-audio" onclick="attivaAudio()" id="btn-audio">🔇 Clicca qui per sbloccare l'Audio</button>
+    <button class="btn-audio" onclick="toggleAudio()" id="btn-audio">🔇 Clicca qui per attivare i Suoni</button>
     <div id="pista-container"><div class="traguardo"></div></div>
     <div id="timer-display">IN ATTESA DI GIOCATORI</div>
 
@@ -47,7 +39,7 @@
         <div id="betting-section" style="display:none;">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #555; padding-bottom:10px;">
                 <span style="font-size: 20px;">👤 Utente: <b id="display-username" style="color:gold;"></b></span>
-                <span style="font-size: 20px;">💶 Saldo: <b id="display-balance" style="color:#00ff00;">0</b>€</span>
+                <span style="font-size: 20px;">💶 Saldo: <b id="display-balance" style="color:#00ff00;">0.00</b>€</span>
             </div>
             
             <div class="mie-scommesse">
@@ -55,8 +47,10 @@
                 <ul id="lista-mie-scommesse">Nessuna scommessa effettuata.</ul>
             </div>
             
+            <div id="limite-puntata" class="limite-txt">Puntata Massima consentita dal Banco: <span id="max-bet-val">0</span>€</div>
+            
             <table>
-                <thead><tr><th>Cavallo</th><th>Quota Vin/Piaz/Ult</th><th>Tipo Scommessa</th><th>Importo</th><th>Azione</th></tr></thead>
+                <thead><tr><th>Cavallo</th><th>Quota Vin/Piaz/Ult</th><th>Tipo Scommessa</th><th>Importo (€)</th><th>Azione</th></tr></thead>
                 <tbody id="horse-table-body"></tbody>
             </table>
             
@@ -66,7 +60,7 @@
                     <p id="storico-podio">In attesa...</p>
                 </div>
                 <div class="podio">
-                    <h4>💰 Vincitori:</h4>
+                    <h4>💰 Vincitori Ultima Gara:</h4>
                     <ul id="storico-vincitori" style="color:#2ecc71;"></ul>
                 </div>
             </div>
@@ -78,43 +72,31 @@
         let myUser = "";
         let cavalliElements = {};
         
+        // AUDIO ELETTRONICO PULITO (Non crasha mai)
         let audioAttivo = false;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // SINTETIZZATORE SPARO (Infallibile su ogni browser)
-        function playSparo() {
+        function playTone(freq, duration, type='sine') {
             if(!audioAttivo) return;
-            const bufferSize = audioCtx.sampleRate * 0.5;
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-            const noise = audioCtx.createBufferSource();
-            noise.buffer = buffer;
-            const envelope = audioCtx.createGain();
-            envelope.gain.setValueAtTime(1, audioCtx.currentTime);
-            envelope.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-            noise.connect(envelope); envelope.connect(audioCtx.destination);
-            noise.start();
-        }
-
-        function playBeep() {
-            if(!audioAttivo) return;
-            const osc = audioCtx.createOscillator();
-            osc.type = 'sine'; osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-            osc.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-        }
-
-        function attivaAudio() {
-            audioAttivo = true;
             if(audioCtx.state === 'suspended') audioCtx.resume();
-            document.getElementById('audio-folla').play().then(() => {
-                document.getElementById('audio-folla').pause(); // Sblocca
-            }).catch(e=>console.log("Audio folla bloccato dal browser"));
-            
-            document.getElementById('btn-audio').style.background = "#27ae60";
-            document.getElementById('btn-audio').innerText = "🔊 Audio Attivato!";
-            playSparo(); 
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function toggleAudio() {
+            audioAttivo = !audioAttivo;
+            const btn = document.getElementById('btn-audio');
+            if(audioAttivo) {
+                btn.style.background = "#27ae60"; btn.innerText = "🔊 Suoni Attivati";
+                playTone(400, 0.2); // Test sound
+            } else {
+                btn.style.background = "#e74c3c"; btn.innerText = "🔇 Suoni Disattivati";
+            }
         }
 
         function eseguiLogin() {
@@ -136,14 +118,27 @@
 
         socket.on('update_data', (s) => {
             const r = s.current_race;
-            if(myUser && s.users[myUser]) document.getElementById('display-balance').innerText = s.users[myUser].wallet;
             
+            if(myUser && s.users[myUser]) {
+                document.getElementById('display-balance').innerText = parseFloat(s.users[myUser].wallet).toFixed(2);
+            }
+            
+            // Gestione Limite Puntata
+            const limDiv = document.getElementById('limite-puntata');
+            if(s.settings.max_bet > 0) {
+                limDiv.style.display = 'block';
+                document.getElementById('max-bet-val').innerText = parseFloat(s.settings.max_bet).toFixed(2);
+            } else {
+                limDiv.style.display = 'none';
+            }
+            
+            // Le mie scommesse con N°
             const mieScommesse = r.bets.filter(b => b.user === myUser);
             const ulScommesse = document.getElementById('lista-mie-scommesse');
-            if(mieScommesse.length === 0) ulScommesse.innerHTML = "<li>Nessuna scommessa effettuata.</li>";
+            if(mieScommesse.length === 0) ulScommesse.innerHTML = "<li>Nessuna scommessa in questa gara.</li>";
             else {
                 ulScommesse.innerHTML = "";
-                mieScommesse.forEach(b => ulScommesse.innerHTML += `<li>${b.amount}€ su <b>N°${b.horse_id} - ${b.horse_nome}</b> (${b.type}) a quota ${b.quota}</li>`);
+                mieScommesse.forEach(b => ulScommesse.innerHTML += `<li>${parseFloat(b.amount).toFixed(2)}€ su <b>N°${b.horse_id} - ${b.horse_nome}</b> (${b.type}) a quota ${b.quota}</li>`);
             }
 
             if(s.history.length > 0) {
@@ -153,12 +148,12 @@
                     <span style="color:silver;">2° ${ultima.secondo}</span><br>
                     <span style="color:#cd7f32;">3° ${ultima.terzo}</span><br>
                     <small style="color:#e74c3c;">Ultimo: ${ultima.ultimo} (Q: ${ultima.q_ultimo})</small><br><br>
-                    <b>Accoppiata:</b> ${ultima.q_accoppiata} | <b>Trio:</b> ${ultima.q_trio}
+                    <b>Accoppiata Combinata:</b> ${ultima.q_accoppiata} | <b>Trio Secco:</b> ${ultima.q_trio}
                 `;
                 
                 const ulVincitori = document.getElementById('storico-vincitori');
                 ulVincitori.innerHTML = ultima.vincitori.length === 0 ? "<li>Nessun vincitore.</li>" : "";
-                ultima.vincitori.forEach(v => ulVincitori.innerHTML += `<li><b>${v.user}</b> vince ${v.vincita}€ (${v.tipo})</li>`);
+                ultima.vincitori.forEach(v => ulVincitori.innerHTML += `<li><b>${v.user}</b> vince ${parseFloat(v.vincita).toFixed(2)}€ (${v.tipo})</li>`);
             }
 
             const tbody = document.getElementById('horse-table-body');
@@ -188,21 +183,18 @@
                     <td><button class="btn-bet" onclick="punta(${h.id})" ${dis}>PUNTA</button></td>
                 </tr>`;
                 
+                // Linea di partenza centrata matematicamente
                 if(!cavalliElements[h.id] && r.status === "waiting") {
                     const d = document.createElement('div');
                     d.className = 'cavallo'; d.style.backgroundColor = h.colore; d.innerText = h.id;
                     pista.appendChild(d);
                     cavalliElements[h.id] = d;
                     
-                    const centerX = 450; 
-                    const centerY = 225; 
-                    const laneX = 435 - (index * 6.5); 
-                    const laneY = 210 - (index * 6.5); 
-                    
+                    const centerX = 450; const centerY = 225; 
+                    const laneX = 435 - (index * 6.5); const laneY = 210 - (index * 6.5); 
                     const startX = centerX + laneX * Math.cos(Math.PI / 2);
                     const startY = centerY + laneY * Math.sin(Math.PI / 2);
-                    d.style.left = (startX - 11) + 'px'; 
-                    d.style.top = (startY - 11) + 'px';
+                    d.style.left = (startX - 11) + 'px'; d.style.top = (startY - 11) + 'px';
                 }
             });
 
@@ -212,40 +204,35 @@
         function punta(id) {
             const a = document.getElementById('amt-' + id).value;
             const t = document.getElementById('tipo-' + id).value;
-            if(a > 0) socket.emit('place_bet', {user: myUser, amount: parseInt(a), horse_id: id, type: t});
+            if(a > 0) socket.emit('place_bet', {user: myUser, amount: parseFloat(a), horse_id: id, type: t});
         }
 
         socket.on('timer_update', (t) => {
             document.getElementById('timer-display').innerText = "CHIUSURA IN: " + t + "s";
-            if(t <= 5 && t > 0) playBeep();
+            if(t <= 5 && t > 0) playTone(600, 0.1, 'square'); // Bip del timer
         });
 
         socket.on('race_start', () => {
             document.getElementById('timer-display').innerText = "🐎 PARTITI! 🐎";
-            if(audioAttivo) { playSparo(); document.getElementById('audio-folla').play(); }
+            // Suono sirena di partenza (2 toni veloci)
+            setTimeout(() => playTone(800, 0.3, 'sawtooth'), 0);
+            setTimeout(() => playTone(1200, 0.4, 'sawtooth'), 300);
         });
 
         socket.on('race_update', (pos) => {
             let index = 0;
             Object.keys(pos).forEach(id => {
-                const centerX = 450; 
-                const centerY = 225; 
-                const laneX = 435 - (index * 6.5);
-                const laneY = 210 - (index * 6.5);
+                const centerX = 450; const centerY = 225; 
+                const laneX = 435 - (index * 6.5); const laneY = 210 - (index * 6.5);
                 const x = centerX + laneX * Math.cos(pos[id] + Math.PI / 2);
                 const y = centerY + laneY * Math.sin(pos[id] + Math.PI / 2);
-                
-                if(cavalliElements[id]) { 
-                    cavalliElements[id].style.left = (x - 11) +'px'; 
-                    cavalliElements[id].style.top = (y - 11) +'px'; 
-                }
+                if(cavalliElements[id]) { cavalliElements[id].style.left = (x - 11) +'px'; cavalliElements[id].style.top = (y - 11) +'px'; }
                 index++;
             });
         });
 
         socket.on('race_finished', () => {
             document.getElementById('timer-display').innerText = "🏁 GARA CONCLUSA! 🏁";
-            if(audioAttivo) { document.getElementById('audio-folla').pause(); document.getElementById('audio-folla').currentTime = 0; }
         });
     </script>
 </body>
