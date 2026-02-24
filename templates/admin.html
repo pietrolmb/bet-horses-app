@@ -20,12 +20,12 @@
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .stats { display: flex; gap: 20px; margin-bottom: 20px;}
         .stat-box { flex: 1; padding: 20px; border-radius: 8px; text-align: center; color: white; font-size: 18px; font-weight: bold;}
-        input { padding: 8px; font-size: 14px; border: 1px solid #bdc3c7; border-radius: 4px; }
+        input, select { padding: 8px; font-size: 14px; border: 1px solid #bdc3c7; border-radius: 4px; }
         button { padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;}
         table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white;}
         th, td { padding: 8px; border: 1px solid #ddd; font-size:14px; text-align: left; }
         
-        /* PISTA ADMIN - Metà esatta della pista giocatori, SENZA ZOOM */
+        /* PISTA ADMIN */
         #pista-wrapper { width: 450px; height: 225px; position: relative; margin: 20px auto; }
         #pista-bg { 
             width: 100%; height: 100%; background: #2d5a3c; border-radius: 50%; 
@@ -75,17 +75,23 @@
             </div>
             
             <div class="card" style="border-left: 5px solid #e74c3c;">
-                <h3>⚙️ Regia YouTube e Limiti Scommessa</h3>
-                <button id="btn-switch-timer" onclick="toggleTimer()" style="width:100%; margin-bottom:15px; padding:15px; font-size:16px;">TIMER AUTOMATICO</button>
+                <h3>⚙️ Impostazioni Gara e Regia</h3>
                 
                 <div style="background:#f9f9f9; padding:15px; border-radius:5px; border:1px solid #ddd;">
+                    
+                    <p style="margin-top:0;"><b>Modalità di Avvio Gara:</b></p>
+                    <select id="set-auto-timer" style="width:100%; padding:10px; font-size:14px; margin-bottom:15px;">
+                        <option value="true">⏱️ Automatico: Il timer parte alla prima scommessa</option>
+                        <option value="false">✋ Manuale: La gara parte solo cliccando "Forza Partenza"</option>
+                    </select>
+
                     <p style="margin-top:0;"><b>Limiti Puntata Massima (€) - Metti 0 per Infiniti</b></p>
                     Singola: <input type="number" id="max-s" style="width:60px;"> 
                     Accoppiata: <input type="number" id="max-a" style="width:60px;"> 
                     Trio: <input type="number" id="max-t" style="width:60px;">
                     
                     <hr style="margin:15px 0; border:1px solid #ddd;">
-                    <p><b>Impostazioni Gara</b></p>
+                    <p><b>Impostazioni Corsa</b></p>
                     Timer Partenza: <input type="number" id="set-timer" style="width:60px;"> sec. <br><br>
                     Numero Cavalli: Da <input type="number" id="min-h" style="width:40px;"> a <input type="number" id="max-h" style="width:40px;">
                     
@@ -167,6 +173,7 @@
             const ext = (v) => { const m = v.match(/(?:v=|youtu\.be\/)([^&]+)/); return m ? m[1] : v; };
             
             socket.emit('admin_update_settings', { 
+                auto_timer: document.getElementById('set-auto-timer').value === "true",
                 max_bet_singola: parseFloat(document.getElementById('max-s').value)||0, 
                 max_bet_accoppiata: parseFloat(document.getElementById('max-a').value)||0, 
                 max_bet_trio: parseFloat(document.getElementById('max-t').value)||0, 
@@ -190,7 +197,6 @@
         }
         
         function forzaPartenza() { socket.emit('admin_force_start'); }
-        function toggleTimer() { socket.emit('admin_toggle_timer'); }
         
         // AGGIORNAMENTO DATI
         socket.on('update_data', (s) => {
@@ -239,7 +245,9 @@
             });
             
             // Popola Input Settings se non in focus
-            if(document.activeElement.tagName !== "INPUT") {
+            if(document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "SELECT") {
+                document.getElementById('set-auto-timer').value = s.settings.auto_timer ? "true" : "false";
+                
                 document.getElementById('max-s').value = s.settings.max_bet_singola;
                 document.getElementById('max-a').value = s.settings.max_bet_accoppiata;
                 document.getElementById('max-t').value = s.settings.max_bet_trio;
@@ -250,15 +258,6 @@
                 document.getElementById('y-w-e').checked = s.settings.yt_wait_enable; document.getElementById('y-w-u').value = s.settings.yt_wait_url; document.getElementById('y-w-s').value = s.settings.yt_wait_start; document.getElementById('y-w-end').value = s.settings.yt_wait_end;
                 document.getElementById('y-r-e').checked = s.settings.yt_race_enable; document.getElementById('y-r-u').value = s.settings.yt_race_url; document.getElementById('y-r-s').value = s.settings.yt_race_start; document.getElementById('y-r-end').value = s.settings.yt_race_end;
                 document.getElementById('y-v-e').checked = s.settings.yt_win_enable; document.getElementById('y-v-u').value = s.settings.yt_win_url; document.getElementById('y-v-s').value = s.settings.yt_win_start; document.getElementById('y-v-end').value = s.settings.yt_win_end;
-            }
-            
-            const btnToggle = document.getElementById('btn-switch-timer');
-            if(s.settings.auto_timer) { 
-                btnToggle.innerText = "MODALITA': TIMER AUTOMATICO"; 
-                btnToggle.style.background = "#2ecc71"; 
-            } else { 
-                btnToggle.innerText = "MODALITA': PARTENZA MANUALE"; 
-                btnToggle.style.background = "#e67e22"; 
             }
             
             // Creazione Pista (se in waiting e vuota)
@@ -277,7 +276,6 @@
                     pistaWrapper.appendChild(d); 
                     cavalliElements[h.id] = d;
                     
-                    // Ricalcolo pista dimezzato: Centro X=225, Y=112.5. Passo=3px
                     const centerX = 225; const centerY = 112.5; 
                     const laneX = 217.5 - (index * 3); const laneY = 105 - (index * 3);
                     const startX = centerX + laneX * Math.cos(Math.PI / 2);
@@ -291,7 +289,6 @@
         // ANIMAZIONE GARA
         socket.on('race_update', (pos) => {
             Object.keys(pos).forEach(id => {
-                // Ricalcolo per l'admin (scala ridotta)
                 const centerX = 225; const centerY = 112.5; 
                 // Cerca l'indice del cavallo per la corsia corretta (trucchetto per Admin)
                 let index = 0;
