@@ -13,17 +13,17 @@
         .btn-forza { background: #e74c3c; width: 100%; font-size: 18px; padding: 10px; margin-top: 5px; border-radius: 8px;}
         .btn-toggle { background: #f39c12; width: 100%; font-size: 18px; padding: 10px; margin-bottom: 10px; border-radius: 8px;}
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 8px; border: 1px solid #ddd; text-align: center; font-size:14px;}
+        th, td { padding: 8px; border: 1px solid #ddd; text-align: left; font-size:14px;}
         th { background: #34495e; color: white; }
         
-        /* Pista Admin con Matematica Corretta */
-        #pista-container { 
-            width: 400px; height: 200px; background: #2d5a3c; border-radius: 125px; 
-            position: relative; border: 35px solid #8B4513; margin: auto; overflow:visible; zoom: 0.9;
-            box-sizing: border-box; z-index: 1;
-        }
-        .traguardo { position: absolute; bottom: -35px; left: 50%; width: 4px; height: 35px; background: red; transform: translateX(-50%);}
-        .cavallo { width: 14px; height: 14px; border-radius: 50%; position: absolute; border: 1px solid #fff; font-size: 8px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 20;}
+        #pista-container { width: 450px; height: 225px; background: #2d5a3c; border-radius: 125px; position: relative; border: 45px solid #8B4513; margin: auto; overflow:visible; box-sizing: border-box; z-index: 1;}
+        .traguardo { position: absolute; bottom: -45px; left: 50%; width: 4px; height: 45px; background: red; transform: translateX(-50%);}
+        .cavallo { width: 14px; height: 14px; border-radius: 50%; position: absolute; border: 1px solid #fff; font-size: 8px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 20; transition: all 0.12s linear;}
+        
+        .race-history-card { background: #fdfdfd; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px; }
+        .race-title { background: #bdc3c7; padding: 10px; cursor: pointer; font-weight: bold; margin: 0; }
+        .race-title:hover { background: #aeb6bf; }
+        .race-details { padding: 15px; border-top: 1px solid #ccc; display: none; }
     </style>
 </head>
 <body>
@@ -41,7 +41,6 @@
                 <h3>🚀 Controllo Gara & Pista</h3>
                 <button class="btn-toggle" id="btn-switch-timer" onclick="toggleTimer()">MODALITA': TIMER AUTOMATICO</button>
                 <button class="btn-forza" onclick="forzaPartenza()">FORZA PARTENZA ORA</button>
-                
                 <div style="margin-top:30px; margin-bottom:20px;">
                     <div id="pista-container"><div class="traguardo"></div></div>
                 </div>
@@ -54,48 +53,55 @@
                 <input type="number" id="importo" placeholder="Euro" style="width: 20%;">
                 <button onclick="gestioneSoldi()" style="margin-top: 10px; width: 100%;">Esegui</button>
             </div>
+            
+            <div class="card" style="border-left: 5px solid #9b59b6;">
+                <h3>👥 Saldi Utenti</h3>
+                <table id="tabella-utenti">
+                    <thead><tr><th>Giocatore</th><th>Saldo</th><th>Stato</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </div>
 
-        <div class="card" style="flex: 2; border-left: 5px solid #f39c12;">
-            <h3>📊 Storico Gara & Scommesse In Corso</h3>
-            
-            <div style="background:#ecf0f1; padding:10px; border-radius:5px; margin-bottom:15px;">
-                <h4 style="margin:0 0 5px 0;">Resoconto Ultima Gara:</h4>
-                <div id="quote-gara" style="font-size: 14px; margin-bottom: 10px;">In attesa...</div>
-                <ul id="lista-vincitori" style="margin:0; color:#27ae60; font-weight:bold;">Nessuna gara giocata.</ul>
+        <div style="flex: 1;">
+            <div class="card" style="border-left: 5px solid #f39c12;">
+                <h3>📊 Scommesse In Corso (Gara Attuale)</h3>
+                <table id="tabella-scommesse">
+                    <thead><tr><th>Giocatore</th><th>Cavallo</th><th>Tipo</th><th>Importo</th><th>Quota</th></tr></thead>
+                    <tbody></tbody>
+                </table>
             </div>
-
-            <table id="tabella-scommesse">
-                <thead><tr><th>Giocatore</th><th>Cavallo</th><th>Tipo</th><th>Importo</th><th>Quota</th></tr></thead>
-                <tbody></tbody>
-            </table>
             
-            <h3 style="margin-top:20px;">👥 Saldi Utenti</h3>
-            <table id="tabella-utenti">
-                <thead><tr><th>Giocatore</th><th>Saldo Attuale</th><th>Stato</th></tr></thead>
-                <tbody></tbody>
-            </table>
+            <div class="card" style="border-left: 5px solid #27ae60;">
+                <h3>📚 Storico Completo Gare (Clicca per espandere)</h3>
+                <div id="storico-gare-container" style="max-height: 500px; overflow-y: auto;">
+                    </div>
+            </div>
         </div>
     </div>
 
     <script>
         const socket = io();
         let cavalliElements = {};
+        let openAccordions = {}; // Ricorda quali schede sono aperte
         socket.emit('request_update');
+
+        function toggleRace(id) {
+            const el = document.getElementById('dettagli-gara-' + id);
+            if(el.style.display === 'none' || el.style.display === '') {
+                el.style.display = 'block'; openAccordions[id] = true;
+            } else {
+                el.style.display = 'none'; openAccordions[id] = false;
+            }
+        }
 
         function gestioneSoldi() {
             const user = document.getElementById('nuovo-user').value.trim();
             const pass = document.getElementById('nuova-pass').value.trim();
             const amt = document.getElementById('importo').value;
-            
-            if(user === "" || pass === "" || amt === "") {
-                alert("Devi compilare tutti i campi: Utente, Password ed Euro!");
-                return;
-            }
-            
+            if(user === "" || pass === "" || amt === "") { alert("Campi vuoti!"); return; }
             socket.emit('admin_update_wallet', {user: user, password: pass, amount: parseInt(amt)});
-            document.getElementById('importo').value = ""; 
-            alert("Operazione completata con successo!");
+            document.getElementById('importo').value = ""; alert("Completato!");
         }
 
         function forzaPartenza() { socket.emit('admin_force_start'); }
@@ -113,27 +119,36 @@
             } else {
                 btnToggle.innerText = "MODALITA': MANUALE"; btnToggle.style.background = "#e67e22";
             }
-
-            if(s.history.length > 0) {
-                const ultima = s.history[s.history.length - 1];
-                document.getElementById('quote-gara').innerHTML = `
-                    <span style="color:#d35400;">1°</span> ${ultima.primo} (Q: ${ultima.q_primo}) | 
-                    <span style="color:#d35400;">Ultimo</span> ${ultima.ultimo} (Q: ${ultima.q_ultimo}) <br>
-                    <b>Accoppiata Combinata:</b> ${ultima.q_accoppiata} | <b>Trio Secco:</b> ${ultima.q_trio}
-                `;
-                const ul = document.getElementById('lista-vincitori');
-                ul.innerHTML = ultima.vincitori.length === 0 ? "<li>Nessun giocatore ha vinto.</li>" : "";
-                ultima.vincitori.forEach(v => ul.innerHTML += `<li>${v.user} vince ${v.vincita}€ (${v.tipo})</li>`);
-            }
             
+            // Popola Storico Gare Cliccabile
+            const contStorico = document.getElementById('storico-gare-container');
+            contStorico.innerHTML = s.history.length === 0 ? "<p>Nessuna gara conclusa.</p>" : "";
+            s.history.slice().reverse().forEach(h => {
+                const isOpen = openAccordions[h.gara_num] ? "block" : "none";
+                let html = `
+                <div class="race-history-card">
+                    <p class="race-title" onclick="toggleRace(${h.gara_num})">🏁 Gara N° ${h.gara_num} | Vince: ${h.primo.split('-')[1]} ▼</p>
+                    <div id="dettagli-gara-${h.gara_num}" class="race-details" style="display: ${isOpen};">
+                        <p><b>1°</b> ${h.primo} (Q: ${h.q_primo})<br>
+                        <b>Ultimo:</b> ${h.ultimo} (Q: ${h.q_ultimo})</p>
+                        <h4 style="margin-bottom:5px; color:#2980b9;">Scommesse piazzate in questa gara:</h4>
+                        <ul style="margin-top:0; font-size:14px;">`;
+                if(h.scommesse.length === 0) html += `<li>Nessuna scommessa registrata.</li>`;
+                h.scommesse.forEach(b => {
+                    html += `<li><b>${b.user}</b> -> ${b.amount}€ su N°${b.horse_id} (${b.type}) a quota ${b.quota}</li>`;
+                });
+                html += `</ul></div></div>`;
+                contStorico.innerHTML += html;
+            });
+
             const tbodyScommesse = document.querySelector('#tabella-scommesse tbody');
-            tbodyScommesse.innerHTML = r.bets.length === 0 ? '<tr><td colspan="5">Nessuna scommessa in questa gara.</td></tr>' : "";
-            r.bets.forEach(b => tbodyScommesse.innerHTML += `<tr><td><b>${b.user}</b></td><td>N°${b.horse_id} - ${b.horse_nome}</td><td>${b.type}</td><td style="color:green;">${b.amount} €</td><td>${b.quota}</td></tr>`);
+            tbodyScommesse.innerHTML = r.bets.length === 0 ? '<tr><td colspan="5">Nessuna scommessa in corso.</td></tr>' : "";
+            r.bets.forEach(b => tbodyScommesse.innerHTML += `<tr><td><b>${b.user}</b></td><td>N°${b.horse_id}</td><td>${b.type}</td><td style="color:green;">${b.amount} €</td><td>${b.quota}</td></tr>`);
 
             const tbodyUtenti = document.querySelector('#tabella-utenti tbody');
-            tbodyUtenti.innerHTML = Object.keys(s.users).length === 0 ? '<tr><td colspan="3">Nessun utente creato.</td></tr>' : "";
+            tbodyUtenti.innerHTML = Object.keys(s.users).length === 0 ? '<tr><td colspan="3">Nessun utente.</td></tr>' : "";
             for (const [nomeUtente, datiUtente] of Object.entries(s.users)) {
-                const isOnline = s.online_users.includes(nomeUtente) ? "🟢 Online" : "⚪ Offline";
+                const isOnline = s.online_users.includes(nomeUtente) ? "🟢 On" : "⚪ Off";
                 tbodyUtenti.innerHTML += `<tr><td><b>${nomeUtente}</b></td><td>${datiUtente.wallet} €</td><td>${isOnline}</td></tr>`;
             }
 
@@ -149,10 +164,10 @@
                     pista.appendChild(d);
                     cavalliElements[h.id] = d;
                     
-                    const centerX = 165; 
-                    const centerY = 65; 
-                    const laneX = 180 - (index * 2.5); 
-                    const laneY = 80 - (index * 2.5);
+                    const centerX = 225; 
+                    const centerY = 112.5; 
+                    const laneX = 217 - (index * 3); 
+                    const laneY = 105 - (index * 3);
                     const startX = centerX + laneX * Math.cos(Math.PI / 2);
                     const startY = centerY + laneY * Math.sin(Math.PI / 2);
                     d.style.left = (startX - 7) + 'px'; d.style.top = (startY - 7) + 'px';
@@ -163,10 +178,10 @@
         socket.on('race_update', (pos) => {
             let index = 0;
             Object.keys(pos).forEach(id => {
-                const centerX = 165; 
-                const centerY = 65; 
-                const laneX = 180 - (index * 2.5);
-                const laneY = 80 - (index * 2.5);
+                const centerX = 225; 
+                const centerY = 112.5; 
+                const laneX = 217 - (index * 3);
+                const laneY = 105 - (index * 3);
                 const x = centerX + laneX * Math.cos(pos[id] + Math.PI / 2);
                 const y = centerY + laneY * Math.sin(pos[id] + Math.PI / 2);
                 if(cavalliElements[id]) { cavalliElements[id].style.left = (x - 7) +'px'; cavalliElements[id].style.top = (y - 7) +'px'; }
