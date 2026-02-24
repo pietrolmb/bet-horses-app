@@ -6,13 +6,14 @@
     <style>
         body { background: #1a472a; color: white; font-family: sans-serif; text-align: center; margin: 0; padding-bottom: 50px;}
         
+        /* PISTA SUPER ALLARGATA */
         #pista-container { 
-            width: 800px; height: 400px; background: #2d5a3c; border-radius: 250px; 
-            position: relative; border: 75px solid #8B4513; margin: 30px auto; 
+            width: 900px; height: 450px; background: #2d5a3c; border-radius: 250px; 
+            position: relative; border: 90px solid #8B4513; margin: 30px auto; 
             box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px black; box-sizing: border-box; 
         }
-        .traguardo { position: absolute; bottom: -75px; left: 50%; width: 6px; height: 75px; background: repeating-linear-gradient(to bottom, white 0, white 5px, red 5px, red 10px); z-index: 1; transform: translateX(-50%);}
-        .cavallo { width: 22px; height: 22px; border-radius: 50%; position: absolute; border: 2px solid #fff; font-size: 11px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 10; transition: all 0.1s linear;}
+        .traguardo { position: absolute; bottom: -90px; left: 50%; width: 6px; height: 90px; background: repeating-linear-gradient(to bottom, white 0, white 5px, red 5px, red 10px); z-index: 1; transform: translateX(-50%);}
+        .cavallo { width: 22px; height: 22px; border-radius: 50%; position: absolute; border: 2px solid #fff; font-size: 11px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 10; transition: all 0.12s linear;}
         
         #game-interface { width: 90%; max-width: 1000px; background: #222; padding: 20px; border-radius: 15px; border: 2px solid gold; margin: auto; }
         .login-box { padding: 30px; border: 1px dashed #555; background: #111; border-radius: 10px;}
@@ -28,6 +29,9 @@
     </style>
 </head>
 <body>
+    
+    <audio id="audio-folla" src="https://www.myinstants.com/media/sounds/crowd-cheering.mp3" preload="auto" loop crossorigin="anonymous"></audio>
+
     <button class="btn-audio" onclick="attivaAudio()" id="btn-audio">🔇 Clicca qui per sbloccare l'Audio</button>
     <div id="pista-container"><div class="traguardo"></div></div>
     <div id="timer-display">IN ATTESA DI GIOCATORI</div>
@@ -52,7 +56,7 @@
             </div>
             
             <table>
-                <thead><tr><th>N°</th><th>Cavallo</th><th>Quota Vin/Piaz/Ult</th><th>Tipo</th><th>Importo</th><th>Azione</th></tr></thead>
+                <thead><tr><th>Cavallo</th><th>Quota Vin/Piaz/Ult</th><th>Tipo Scommessa</th><th>Importo</th><th>Azione</th></tr></thead>
                 <tbody id="horse-table-body"></tbody>
             </table>
             
@@ -74,13 +78,25 @@
         let myUser = "";
         let cavalliElements = {};
         
-        // AUDIO (Audio ufficiali Google, non vengono bloccati)
         let audioAttivo = false;
-        const sparo = new Audio('https://actions.google.com/sounds/v1/weapons/gunfire_50_cal.ogg');
-        const folla = new Audio('https://actions.google.com/sounds/v1/crowds/crowd_cheering.ogg');
-        folla.loop = true;
-        
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // SINTETIZZATORE SPARO (Infallibile su ogni browser)
+        function playSparo() {
+            if(!audioAttivo) return;
+            const bufferSize = audioCtx.sampleRate * 0.5;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const envelope = audioCtx.createGain();
+            envelope.gain.setValueAtTime(1, audioCtx.currentTime);
+            envelope.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            noise.connect(envelope); envelope.connect(audioCtx.destination);
+            noise.start();
+        }
+
         function playBeep() {
             if(!audioAttivo) return;
             const osc = audioCtx.createOscillator();
@@ -92,9 +108,13 @@
         function attivaAudio() {
             audioAttivo = true;
             if(audioCtx.state === 'suspended') audioCtx.resume();
+            document.getElementById('audio-folla').play().then(() => {
+                document.getElementById('audio-folla').pause(); // Sblocca
+            }).catch(e=>console.log("Audio folla bloccato dal browser"));
+            
             document.getElementById('btn-audio').style.background = "#27ae60";
             document.getElementById('btn-audio').innerText = "🔊 Audio Attivato!";
-            sparo.volume = 0; sparo.play(); 
+            playSparo(); 
         }
 
         function eseguiLogin() {
@@ -118,7 +138,6 @@
             const r = s.current_race;
             if(myUser && s.users[myUser]) document.getElementById('display-balance').innerText = s.users[myUser].wallet;
             
-            // Le mie scommesse (NOME + NUMERO)
             const mieScommesse = r.bets.filter(b => b.user === myUser);
             const ulScommesse = document.getElementById('lista-mie-scommesse');
             if(mieScommesse.length === 0) ulScommesse.innerHTML = "<li>Nessuna scommessa effettuata.</li>";
@@ -127,16 +146,14 @@
                 mieScommesse.forEach(b => ulScommesse.innerHTML += `<li>${b.amount}€ su <b>N°${b.horse_id} - ${b.horse_nome}</b> (${b.type}) a quota ${b.quota}</li>`);
             }
 
-            // Storico (Con Quote Accoppiata e Trio)
             if(s.history.length > 0) {
                 const ultima = s.history[s.history.length - 1];
                 document.getElementById('storico-podio').innerHTML = `
-                    <span style="color:gold;">1° ${ultima.primo}</span> (Quota: ${ultima.q_primo})<br>
+                    <span style="color:gold;">1° ${ultima.primo}</span> (Q: ${ultima.q_primo})<br>
                     <span style="color:silver;">2° ${ultima.secondo}</span><br>
                     <span style="color:#cd7f32;">3° ${ultima.terzo}</span><br>
-                    <small style="color:#e74c3c;">Ultimo: ${ultima.ultimo} (Quota: ${ultima.q_ultimo})</small><br><br>
-                    <b>Accoppiata Combinata:</b> ${ultima.q_accoppiata}<br>
-                    <b>Trio Secco:</b> ${ultima.q_trio}
+                    <small style="color:#e74c3c;">Ultimo: ${ultima.ultimo} (Q: ${ultima.q_ultimo})</small><br><br>
+                    <b>Accoppiata:</b> ${ultima.q_accoppiata} | <b>Trio:</b> ${ultima.q_trio}
                 `;
                 
                 const ulVincitori = document.getElementById('storico-vincitori');
@@ -155,8 +172,10 @@
             r.horses.forEach((h, index) => {
                 const dis = r.status !== "waiting" && r.status !== "countdown" ? "disabled" : "";
                 tbody.innerHTML += `<tr>
-                    <td><div style="background:${h.colore};width:22px;height:22px;border-radius:50%;margin:auto;">${h.id}</div></td>
-                    <td><b>N°${h.id}</b> - ${h.nome}</td>
+                    <td style="text-align:left;">
+                        <div style="background:${h.colore};width:20px;height:20px;border-radius:50%;display:inline-block;vertical-align:middle;"></div> 
+                        <b>N°${h.id}</b> - ${h.nome}
+                    </td>
                     <td style="font-size:14px;">V:<b style="color:gold">${h.quota_v}</b> / P:<b style="color:#aaa">${h.quota_p}</b> / U:<b style="color:#e74c3c">${h.quota_u}</b></td>
                     <td>
                         <select id="tipo-${h.id}" ${dis} style="padding:5px;">
@@ -175,11 +194,10 @@
                     pista.appendChild(d);
                     cavalliElements[h.id] = d;
                     
-                    // NUOVA MATEMATICA CORRETTA PER I BORDI CSS
-                    const centerX = 325; // Spazio interno 650 diviso 2
-                    const centerY = 125; // Spazio interno 250 diviso 2
-                    const laneX = 360 - (index * 5.5); // Raggio che include lo sfasamento del bordo (75px)
-                    const laneY = 160 - (index * 5.5); 
+                    const centerX = 450; 
+                    const centerY = 225; 
+                    const laneX = 435 - (index * 6.5); 
+                    const laneY = 210 - (index * 6.5); 
                     
                     const startX = centerX + laneX * Math.cos(Math.PI / 2);
                     const startY = centerY + laneY * Math.sin(Math.PI / 2);
@@ -204,16 +222,16 @@
 
         socket.on('race_start', () => {
             document.getElementById('timer-display').innerText = "🐎 PARTITI! 🐎";
-            if(audioAttivo) { sparo.volume = 1; sparo.play(); folla.volume = 0.5; folla.play(); }
+            if(audioAttivo) { playSparo(); document.getElementById('audio-folla').play(); }
         });
 
         socket.on('race_update', (pos) => {
             let index = 0;
             Object.keys(pos).forEach(id => {
-                const centerX = 325; 
-                const centerY = 125; 
-                const laneX = 360 - (index * 5.5);
-                const laneY = 160 - (index * 5.5);
+                const centerX = 450; 
+                const centerY = 225; 
+                const laneX = 435 - (index * 6.5);
+                const laneY = 210 - (index * 6.5);
                 const x = centerX + laneX * Math.cos(pos[id] + Math.PI / 2);
                 const y = centerY + laneY * Math.sin(pos[id] + Math.PI / 2);
                 
@@ -227,7 +245,7 @@
 
         socket.on('race_finished', () => {
             document.getElementById('timer-display').innerText = "🏁 GARA CONCLUSA! 🏁";
-            if(audioAttivo) { folla.pause(); folla.currentTime = 0; }
+            if(audioAttivo) { document.getElementById('audio-folla').pause(); document.getElementById('audio-folla').currentTime = 0; }
         });
     </script>
 </body>
