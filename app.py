@@ -14,7 +14,10 @@ data = {
     "admin_stats": {"totale_incassato": 0.0, "totale_pagato": 0.0, "bilancio": 0.0},
     "current_race": {"status": "waiting", "horses": [], "bets": [], "timer": 0},
     "history": [],
-    "settings": {"auto_timer": True, "max_bet": 0, "timer_duration": 60}
+    "settings": {
+        "auto_timer": True, "max_bet": 0, "timer_duration": 60,
+        "yt_enabled": True, "yt_url": "E3m-XH1Kij0", "yt_start": 54, "yt_end": 65
+    }
 }
 
 NOMI_A = ["Western", "Più Forte", "Lord", "Stud", "National", "Golden", "Pocket", "Diamond", "Wild", "Cowboy"]
@@ -78,6 +81,10 @@ def update_settings(req):
     if 'max_bet' in req: data["settings"]["max_bet"] = float(req['max_bet'])
     if 'auto_timer' in req: data["settings"]["auto_timer"] = req['auto_timer']
     if 'timer_duration' in req: data["settings"]["timer_duration"] = int(req['timer_duration'])
+    if 'yt_enabled' in req: data["settings"]["yt_enabled"] = req['yt_enabled']
+    if 'yt_url' in req: data["settings"]["yt_url"] = req['yt_url']
+    if 'yt_start' in req: data["settings"]["yt_start"] = int(req['yt_start'])
+    if 'yt_end' in req: data["settings"]["yt_end"] = int(req['yt_end'])
     socketio.emit('update_data', data)
 
 @socketio.on('admin_force_start')
@@ -111,28 +118,33 @@ def handle_bet(bet_data):
     if data["settings"]["max_bet"] > 0 and importo > data["settings"]["max_bet"]:
         emit('login_error', f"Puntata massima consentita: {data['settings']['max_bet']}€")
         return
-    
-    if user in data["users"] and data["users"][user]["wallet"] >= importo and race["status"] in ["waiting", "countdown"]:
-        data["users"][user]["wallet"] = round(data["users"][user]["wallet"] - importo, 2)
-        data["admin_stats"]["totale_incassato"] = round(data["admin_stats"]["totale_incassato"] + importo, 2)
         
-        cavallo = next(h for h in race["horses"] if h["id"] == bet_data['horse_id'])
-        if tipo == "Piazzato": quota = cavallo["quota_p"]
-        elif tipo == "Ultimo": quota = cavallo["quota_u"]
-        else: quota = cavallo["quota_v"]
-        
-        race["bets"].append({
-            "user": user, "horse_id": bet_data['horse_id'], "horse_nome": cavallo['nome'],
-            "amount": importo, "quota": quota, "type": tipo
-        })
-        
-        if data["settings"]["auto_timer"]:
-            race["timer"] = data["settings"]["timer_duration"]
-            if race["status"] == "waiting":
-                race["status"] = "countdown"
-                socketio.start_background_task(run_countdown)
-        
-        socketio.emit('update_data', data)
+    if user in data["users"]:
+        if data["users"][user]["wallet"] < importo:
+            emit('login_error', "Saldo insufficiente!")
+            return
+            
+        if race["status"] in ["waiting", "countdown"]:
+            data["users"][user]["wallet"] = round(data["users"][user]["wallet"] - importo, 2)
+            data["admin_stats"]["totale_incassato"] = round(data["admin_stats"]["totale_incassato"] + importo, 2)
+            
+            cavallo = next(h for h in race["horses"] if h["id"] == bet_data['horse_id'])
+            if tipo == "Piazzato": quota = cavallo["quota_p"]
+            elif tipo == "Ultimo": quota = cavallo["quota_u"]
+            else: quota = cavallo["quota_v"]
+            
+            race["bets"].append({
+                "user": user, "horse_id": bet_data['horse_id'], "horse_nome": cavallo['nome'],
+                "amount": importo, "quota": quota, "type": tipo
+            })
+            
+            if data["settings"]["auto_timer"]:
+                race["timer"] = data["settings"]["timer_duration"]
+                if race["status"] == "waiting":
+                    race["status"] = "countdown"
+                    socketio.start_background_task(run_countdown)
+            
+            socketio.emit('update_data', data)
 
 def run_countdown():
     race = data["current_race"]
@@ -153,7 +165,6 @@ def start_race():
     while not traguardo_raggiunto:
         max_pos = 0
         for h in race["horses"]: 
-            # LA NUOVA FISICA: Varianza enorme, la probabilità matematica conta pochissimo nella singola gara
             passo_base = random.uniform(0.005, 0.085) 
             spinta = h["prob_vittoria"] * 0.012 
             posizioni[h["id"]] += (passo_base + spinta)
@@ -164,7 +175,7 @@ def start_race():
         socketio.emit('race_update', posizioni)
         socketio.sleep(0.12)
         
-        if max_pos >= 2 * math.pi: # Traguardo ESATTO (1 Giro)
+        if max_pos >= 2 * math.pi: 
             traguardo_raggiunto = True
             
     classifica = sorted(race["horses"], key=lambda h: posizioni[h["id"]], reverse=True)
@@ -209,7 +220,10 @@ def start_race():
     data["history"].append(risultato)
     
     socketio.emit('race_finished', risultato)
-    socketio.sleep(13) # Pausa lunga per permettere alla canzone di finire
+    
+    # Pausa calcolata sul tempo della canzone
+    durata_canzone = data["settings"]["yt_end"] - data["settings"]["yt_start"]
+    socketio.sleep(durata_canzone + 3) # Aspetta che finisca la canzone + 3 sec di margine
     
     race["status"] = "waiting"
     race["horses"] = genera_nuova_corsa()
