@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Corse Cavalli Live</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body { background: #1a472a; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #pista-container { 
+            width: 900px; height: 500px; margin: 20px auto; position: relative;
+            background: #2d5a3c; border: 10px solid #5d4037; border-radius: 250px; /* Effetto ovale */
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+        .cavallo { 
+            width: 25px; height: 25px; border-radius: 50%; position: absolute; 
+            border: 2px solid white; font-weight: bold; font-size: 14px; 
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.1s linear;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏇 Virtual Horse Racing</h1>
+    <div id="pista-container">
+        </div>
+    <h2 id="timer">In attesa di scommesse...</h2>
+
+    <script>
+        const socket = io();
+        // Qui collegheremo i movimenti inviati dal server
+    </script>
+</body>
+</html>
