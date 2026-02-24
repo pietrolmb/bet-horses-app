@@ -1,19 +1,18 @@
 import random
 import eventlet
-eventlet.monkey_patch() # Fondamentale per non far bloccare il server
+eventlet.monkey_patch()
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
-# DATABASE POTENZIATO
 data = {
     "users": {},
-    "online_users": [], # Giocatori attualmente connessi
+    "online_users": [],
     "admin_stats": {"totale_incassato": 0, "totale_pagato": 0, "bilancio": 0},
     "current_race": {"status": "waiting", "horses": [], "bets": [], "timer": 0},
-    "history": [] # Storico dei risultati
+    "history": []
 }
 
 NOMI_A = ["Western", "Più Forte", "Lord", "Stud", "National", "Golden", "Pocket", "Diamond", "Wild", "Cowboy"]
@@ -27,7 +26,9 @@ def genera_nuova_corsa():
         prob = random.uniform(0.05, 0.20)
         quota_v = round(1 / (prob * 1.15), 2)
         horses.append({
-            "id": i + 1, "nome": nomi[i], "quota_v": max(1.20, quota_v),
+            "id": i + 1, "nome": nomi[i], 
+            "quota_v": max(1.20, quota_v),
+            "quota_p": max(1.10, round(quota_v / 3, 2)), # Quota piazzato
             "colore": f"#{random.randint(100,255):02x}{random.randint(100,255):02x}{random.randint(100,255):02x}"
         })
     return horses
@@ -51,19 +52,27 @@ def handle_wallet(req):
     if user not in data["users"]:
         data["users"][user] = {"wallet": 0, "password": password}
     else:
-        # Se l'utente esiste ma l'admin cambia la password
         if password != "": data["users"][user]["password"] = password
-        
     data["users"][user]["wallet"] += amount
     socketio.emit('update_data', data)
+
+# FORZATURA PARTENZA DA PARTE DELL'ADMIN
+@socketio.on('admin_force_start')
+def force_start():
+    race = data["current_race"]
+    if race["status"] in ["waiting", "countdown"]:
+        race["timer"] = 1 # Forza il timer a finire istantaneamente
+        if race["status"] == "waiting":
+            race["status"] = "countdown"
+            socketio.start_background_task(run_countdown)
+        socketio.emit('update_data', data)
 
 @socketio.on('tentativo_login')
 def login_check(req):
     user = req.get('user')
     pwd = req.get('password')
     if user in data["users"] and data["users"][user]["password"] == pwd:
-        if user not in data["online_users"]:
-            data["online_users"].append(user)
+        if user not in data["online_users"]: data["online_users"].append(user)
         emit('login_success', {"user": user})
         socketio.emit('update_data', data)
     else:
@@ -73,31 +82,37 @@ def login_check(req):
 def handle_bet(bet_data):
     race = data["current_race"]
     user = bet_data['user']
+    importo = bet_data['amount']
+    tipo = bet_data['type']
     
-    # Controlli di sicurezza
-    if user in data["users"] and data["users"][user]["wallet"] >= bet_data['amount'] and race["status"] in ["waiting", "countdown"]:
+    if user in data["users"] and data["users"][user]["wallet"] >= importo and race["status"] in ["waiting", "countdown"]:
+        data["users"][user]["wallet"] -= importo
+        data["admin_stats"]["totale_incassato"] += importo
+        data["admin_stats"]["bilancio"] += importo
         
-        data["users"][user]["wallet"] -= bet_data['amount']
-        data["admin_stats"]["totale_incassato"] += bet_data['amount']
-        data["admin_stats"]["bilancio"] += bet_data['amount']
+        # Assegna la quota giusta in base al tipo di scommessa
+        cavallo = next(h for h in race["horses"] if h["id"] == bet_data['horse_id'])
+        quota = cavallo["quota_p"] if tipo == "Piazzato" else cavallo["quota_v"]
         
-        quota = next(h["quota_v"] for h in race["horses"] if h["id"] == bet_data['horse_id'])
-        race["bets"].append({"user": user, "horse_id": bet_data['horse_id'], "amount": bet_data['amount'], "quota": quota})
+        race["bets"].append({
+            "user": user, 
+            "horse_id": bet_data['horse_id'], 
+            "amount": importo, 
+            "quota": quota,
+            "type": tipo
+        })
         
-        # RESET TIMER: 60 secondi dall'ultima scommessa
         race["timer"] = 60
-        
         if race["status"] == "waiting":
             race["status"] = "countdown"
             socketio.start_background_task(run_countdown)
-            
         socketio.emit('update_data', data)
 
 def run_countdown():
     race = data["current_race"]
     while race["timer"] > 0:
         socketio.emit('timer_update', race["timer"])
-        socketio.sleep(1) # Usa socketio.sleep, non blocca il server!
+        socketio.sleep(1)
         race["timer"] -= 1
     start_race()
 
@@ -108,14 +123,11 @@ def start_race():
     
     posizioni = {h["id"]: 0 for h in race["horses"]}
     
-    # Gara
     for _ in range(150):
-        for h in race["horses"]: 
-            posizioni[h["id"]] += random.uniform(0.02, 0.08)
+        for h in race["horses"]: posizioni[h["id"]] += random.uniform(0.02, 0.08)
         socketio.emit('race_update', posizioni)
-        socketio.sleep(0.1) # Usa socketio.sleep
+        socketio.sleep(0.1)
         
-    # Risultati
     classifica = sorted(race["horses"], key=lambda h: posizioni[h["id"]], reverse=True)
     
     risultato = {
@@ -127,7 +139,8 @@ def start_race():
     }
     data["history"].append(risultato)
     
-    socketio.sleep(3) # Pausa per far leggere i risultati
+    socketio.emit('race_finished')
+    socketio.sleep(5) # Pausa di 5 secondi per far leggere il risultato
     
     race["status"] = "waiting"
     race["horses"] = genera_nuova_corsa()
