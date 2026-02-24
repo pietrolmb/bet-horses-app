@@ -10,11 +10,16 @@
         .stat-box { flex: 1; padding: 20px; border-radius: 8px; text-align: center; color: white; font-size: 18px; font-weight: bold;}
         input { padding: 10px; font-size: 16px; border: 1px solid #bdc3c7; border-radius: 4px; margin-right: 10px;}
         button { padding: 10px 20px; font-size: 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;}
-        .btn-forza { background: #e74c3c; width: 100%; font-size: 20px; padding: 15px; margin-top: 10px; border-radius: 8px;}
-        .btn-forza:hover { background: #c0392b; }
+        .btn-forza { background: #e74c3c; width: 100%; font-size: 18px; padding: 10px; margin-top: 5px; border-radius: 8px;}
+        .btn-toggle { background: #f39c12; width: 100%; font-size: 18px; padding: 10px; margin-bottom: 10px; border-radius: 8px;}
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 10px; border: 1px solid #ddd; text-align: center; }
+        th, td { padding: 8px; border: 1px solid #ddd; text-align: center; font-size:14px;}
         th { background: #34495e; color: white; }
+        
+        /* Mini Pista Admin */
+        #pista-container { width: 400px; height: 200px; background: #2d5a3c; border-radius: 125px; position: relative; border: 20px solid #8B4513; margin: auto; overflow:hidden; zoom: 0.8;}
+        .traguardo { position: absolute; bottom: -20px; left: 50%; width: 4px; height: 20px; background: red; transform: translateX(-50%);}
+        .cavallo { width: 14px; height: 14px; border-radius: 50%; position: absolute; border: 1px solid #fff; font-size: 8px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; transition: all 0.1s linear;}
     </style>
 </head>
 <body>
@@ -28,33 +33,41 @@
 
     <div style="display: flex; gap: 20px;">
         <div style="flex: 1;">
+            <div class="card" style="border-left: 5px solid #e74c3c;">
+                <h3>🚀 Controllo Gara & Pista</h3>
+                <button class="btn-toggle" id="btn-switch-timer" onclick="toggleTimer()">MODALITA': TIMER AUTOMATICO</button>
+                <button class="btn-forza" onclick="forzaPartenza()">FORZA PARTENZA ORA</button>
+                
+                <div style="margin-top:20px;">
+                    <div id="pista-container"><div class="traguardo"></div></div>
+                </div>
+            </div>
+            
             <div class="card" style="border-left: 5px solid #3498db;">
                 <h3>➕ Ricarica / Crea Utente</h3>
                 <input type="text" id="nuovo-user" placeholder="Utente" style="width: 30%;">
                 <input type="text" id="nuova-pass" placeholder="Password" style="width: 30%;">
                 <input type="number" id="importo" placeholder="Euro" style="width: 20%;">
-                <button onclick="gestioneSoldi()" style="margin-top: 10px; width: 100%;">Conferma Esecuzione</button>
-            </div>
-            
-            <div class="card" style="border-left: 5px solid #e74c3c;">
-                <h3>🚀 Controllo Gara</h3>
-                <p>Usa questo tasto per far partire la gara istantaneamente, ignorando il timer dei 60 secondi.</p>
-                <button class="btn-forza" onclick="forzaPartenza()">FORZA PARTENZA ORA</button>
-            </div>
-
-            <div class="card" style="border-left: 5px solid #9b59b6;">
-                <h3>👥 Saldi Utenti Registrati</h3>
-                <table id="tabella-utenti">
-                    <thead><tr><th>Giocatore</th><th>Saldo Attuale</th><th>Stato</th></tr></thead>
-                    <tbody></tbody>
-                </table>
+                <button onclick="gestioneSoldi()" style="margin-top: 10px; width: 100%;">Esegui</button>
             </div>
         </div>
 
         <div class="card" style="flex: 2; border-left: 5px solid #f39c12;">
-            <h3>📊 Scommesse Corsa Attuale</h3>
+            <h3>📊 Storico Gara & Scommesse In Corso</h3>
+            
+            <div style="background:#ecf0f1; padding:10px; border-radius:5px; margin-bottom:15px;">
+                <h4 style="margin:0 0 5px 0;">Vincitori Ultima Gara:</h4>
+                <ul id="lista-vincitori" style="margin:0; color:#27ae60; font-weight:bold;">Nessuna gara giocata.</ul>
+            </div>
+
             <table id="tabella-scommesse">
                 <thead><tr><th>Giocatore</th><th>Cavallo</th><th>Tipo</th><th>Importo</th><th>Quota</th></tr></thead>
+                <tbody></tbody>
+            </table>
+            
+            <h3 style="margin-top:20px;">👥 Saldi Utenti</h3>
+            <table id="tabella-utenti">
+                <thead><tr><th>Giocatore</th><th>Saldo Attuale</th><th>Stato</th></tr></thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -62,6 +75,7 @@
 
     <script>
         const socket = io();
+        let cavalliElements = {};
         socket.emit('request_update');
 
         function gestioneSoldi() {
@@ -71,35 +85,81 @@
             if(user !== "" && amt !== "") {
                 socket.emit('admin_update_wallet', {user: user, password: pass, amount: parseInt(amt)});
                 document.getElementById('importo').value = ""; 
-                alert("Operazione completata su " + user);
             }
         }
 
-        function forzaPartenza() {
-            if(confirm("Sei sicuro di voler far partire la gara ADESSO?")) {
-                socket.emit('admin_force_start');
-            }
-        }
+        function forzaPartenza() { socket.emit('admin_force_start'); }
+        function toggleTimer() { socket.emit('admin_toggle_timer'); }
 
         socket.on('update_data', (s) => {
+            const r = s.current_race;
             document.getElementById('inc').innerText = s.admin_stats.totale_incassato;
             document.getElementById('pag').innerText = s.admin_stats.totale_pagato;
             document.getElementById('util').innerText = s.admin_stats.bilancio;
             
-            // Aggiorna tabella scommesse
-            const tbodyScommesse = document.querySelector('#tabella-scommesse tbody');
-            tbodyScommesse.innerHTML = s.current_race.bets.length === 0 ? '<tr><td colspan="5">Nessuna scommessa in questa gara.</td></tr>' : "";
-            s.current_race.bets.forEach(b => {
-                tbodyScommesse.innerHTML += `<tr><td><b>${b.user}</b></td><td>N° ${b.horse_id}</td><td>${b.type}</td><td style="color:green;">${b.amount} €</td><td>${b.quota}</td></tr>`;
-            });
+            // Bottone Toggle
+            const btnToggle = document.getElementById('btn-switch-timer');
+            if(s.settings.auto_timer) {
+                btnToggle.innerText = "MODALITA': TIMER 60s ATTIVO (Clicca per Manuale)";
+                btnToggle.style.background = "#2ecc71";
+            } else {
+                btnToggle.innerText = "MODALITA': MANUALE (Clicca per Timer Auto)";
+                btnToggle.style.background = "#e67e22";
+            }
 
-            // Aggiorna tabella conti utenti
+            // Storico vincitori
+            if(s.history.length > 0) {
+                const ultima = s.history[s.history.length - 1];
+                const ul = document.getElementById('lista-vincitori');
+                ul.innerHTML = ultima.vincitori.length === 0 ? "<li>Nessun giocatore ha vinto.</li>" : "";
+                ultima.vincitori.forEach(v => ul.innerHTML += `<li>${v.user} vince ${v.vincita}€ (${v.tipo})</li>`);
+            }
+            
+            // Scommesse correnti
+            const tbodyScommesse = document.querySelector('#tabella-scommesse tbody');
+            tbodyScommesse.innerHTML = r.bets.length === 0 ? '<tr><td colspan="5">Nessuna scommessa in questa gara.</td></tr>' : "";
+            r.bets.forEach(b => tbodyScommesse.innerHTML += `<tr><td><b>${b.user}</b></td><td>${b.horse_nome}</td><td>${b.type}</td><td style="color:green;">${b.amount} €</td><td>${b.quota}</td></tr>`);
+
+            // Utenti
             const tbodyUtenti = document.querySelector('#tabella-utenti tbody');
             tbodyUtenti.innerHTML = Object.keys(s.users).length === 0 ? '<tr><td colspan="3">Nessun utente creato.</td></tr>' : "";
             for (const [nomeUtente, datiUtente] of Object.entries(s.users)) {
                 const isOnline = s.online_users.includes(nomeUtente) ? "🟢 Online" : "⚪ Offline";
                 tbodyUtenti.innerHTML += `<tr><td><b>${nomeUtente}</b></td><td>${datiUtente.wallet} €</td><td>${isOnline}</td></tr>`;
             }
+
+            // Pista Admin
+            const pista = document.getElementById('pista-container');
+            if(r.status === "waiting" && r.bets.length === 0) {
+                document.querySelectorAll('.cavallo').forEach(e => e.remove());
+                cavalliElements = {};
+            }
+            r.horses.forEach((h, index) => {
+                if(!cavalliElements[h.id] && r.status === "waiting") {
+                    const d = document.createElement('div');
+                    d.className = 'cavallo'; d.style.backgroundColor = h.colore; d.innerText = h.id;
+                    pista.appendChild(d);
+                    cavalliElements[h.id] = d;
+                    // Proporzioni per pista admin (metà grandezza)
+                    const laneX = 200 + (index * 2); 
+                    const laneY = 100 + (index * 2);
+                    const startX = 200 + laneX * Math.cos(Math.PI / 2);
+                    const startY = 100 + laneY * Math.sin(Math.PI / 2);
+                    d.style.left = (startX - 7) + 'px'; d.style.top = (startY - 7) + 'px';
+                }
+            });
+        });
+
+        socket.on('race_update', (pos) => {
+            let index = 0;
+            Object.keys(pos).forEach(id => {
+                const laneX = 200 + (index * 2);
+                const laneY = 100 + (index * 2);
+                const x = 200 + laneX * Math.cos(pos[id] + Math.PI / 2);
+                const y = 100 + laneY * Math.sin(pos[id] + Math.PI / 2);
+                if(cavalliElements[id]) { cavalliElements[id].style.left = (x - 7) +'px'; cavalliElements[id].style.top = (y - 7) +'px'; }
+                index++;
+            });
         });
     </script>
 </body>
