@@ -16,7 +16,11 @@
         th, td { padding: 8px; border: 1px solid #ddd; text-align: left; font-size:14px;}
         th { background: #34495e; color: white; }
         
-        #pista-container { width: 450px; height: 225px; background: #2d5a3c; border-radius: 125px; position: relative; border: 45px solid #8B4513; margin: auto; overflow:visible; box-sizing: border-box; z-index: 1;}
+        /* Pista Admin con CSS Ellisse Perfetta */
+        #pista-container { 
+            width: 450px; height: 225px; background: #2d5a3c; border-radius: 50%; 
+            position: relative; border: 45px solid #8B4513; margin: auto; overflow:visible; box-sizing: border-box; z-index: 1;
+        }
         .traguardo { position: absolute; bottom: -45px; left: 50%; width: 4px; height: 45px; background: red; transform: translateX(-50%);}
         .cavallo { width: 14px; height: 14px; border-radius: 50%; position: absolute; border: 1px solid #fff; font-size: 8px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 20; transition: all 0.12s linear;}
         
@@ -41,10 +45,16 @@
                 <h3>🚀 Controllo Gara & Pista</h3>
                 <button class="btn-toggle" id="btn-switch-timer" onclick="toggleTimer()">MODALITA': TIMER AUTOMATICO</button>
                 
-                <div style="margin-bottom: 15px; background: #eee; padding: 10px; border-radius: 5px;">
-                    <b>Limite Puntata Massima (€):</b>
-                    <input type="number" id="set-max-bet" style="width: 80px; padding: 5px;" placeholder="0 = Infinito">
-                    <button onclick="salvaMaxBet()" style="padding: 5px 10px; font-size: 14px;">Salva Limite</button>
+                <div style="margin-bottom: 15px; background: #eee; padding: 10px; border-radius: 5px; display:flex; flex-direction:column; gap:10px;">
+                    <div>
+                        <b>Limite Puntata Massima (€):</b>
+                        <input type="number" id="set-max-bet" style="width: 80px; padding: 5px;" placeholder="0 = Infinito">
+                    </div>
+                    <div>
+                        <b>Secondi Timer Partenza:</b>
+                        <input type="number" id="set-timer-dur" style="width: 80px; padding: 5px;" placeholder="60">
+                    </div>
+                    <button onclick="salvaImpostazioni()" style="padding: 5px 10px; font-size: 14px;">Salva Impostazioni</button>
                 </div>
 
                 <button class="btn-forza" onclick="forzaPartenza()">FORZA PARTENZA ORA</button>
@@ -110,11 +120,16 @@
             document.getElementById('importo').value = ""; alert("Completato!");
         }
 
-        function salvaMaxBet() {
-            const val = document.getElementById('set-max-bet').value;
-            if(val !== "") {
-                socket.emit('admin_update_settings', {max_bet: parseFloat(val)});
-                alert("Limite aggiornato! (0 = Nessun limite)");
+        function salvaImpostazioni() {
+            const valBet = document.getElementById('set-max-bet').value;
+            const valTime = document.getElementById('set-timer-dur').value;
+            let payload = {};
+            if(valBet !== "") payload.max_bet = parseFloat(valBet);
+            if(valTime !== "") payload.timer_duration = parseInt(valTime);
+            
+            if(Object.keys(payload).length > 0) {
+                socket.emit('admin_update_settings', payload);
+                alert("Impostazioni salvate con successo!");
             }
         }
 
@@ -128,10 +143,11 @@
             document.getElementById('util').innerText = parseFloat(s.admin_stats.bilancio).toFixed(2);
             
             document.getElementById('set-max-bet').value = s.settings.max_bet;
+            document.getElementById('set-timer-dur').value = s.settings.timer_duration;
 
             const btnToggle = document.getElementById('btn-switch-timer');
             if(s.settings.auto_timer) {
-                btnToggle.innerText = "MODALITA': TIMER 60s ATTIVO"; btnToggle.style.background = "#2ecc71";
+                btnToggle.innerText = "MODALITA': TIMER ATTIVO"; btnToggle.style.background = "#2ecc71";
             } else {
                 btnToggle.innerText = "MODALITA': MANUALE"; btnToggle.style.background = "#e67e22";
             }
@@ -179,8 +195,10 @@
                     pista.appendChild(d);
                     cavalliElements[h.id] = d;
                     
-                    const centerX = 225; const centerY = 112.5; 
-                    const laneX = 217 - (index * 3); const laneY = 105 - (index * 3);
+                    const centerX = 225; 
+                    const centerY = 112.5; 
+                    const laneX = 217 - (index * 3); 
+                    const laneY = 105 - (index * 3);
                     const startX = centerX + laneX * Math.cos(Math.PI / 2);
                     const startY = centerY + laneY * Math.sin(Math.PI / 2);
                     d.style.left = (startX - 7) + 'px'; d.style.top = (startY - 7) + 'px';
@@ -191,8 +209,10 @@
         socket.on('race_update', (pos) => {
             let index = 0;
             Object.keys(pos).forEach(id => {
-                const centerX = 225; const centerY = 112.5; 
-                const laneX = 217 - (index * 3); const laneY = 105 - (index * 3);
+                const centerX = 225; 
+                const centerY = 112.5; 
+                const laneX = 217 - (index * 3);
+                const laneY = 105 - (index * 3);
                 const x = centerX + laneX * Math.cos(pos[id] + Math.PI / 2);
                 const y = centerY + laneY * Math.sin(pos[id] + Math.PI / 2);
                 if(cavalliElements[id]) { cavalliElements[id].style.left = (x - 7) +'px'; cavalliElements[id].style.top = (y - 7) +'px'; }
