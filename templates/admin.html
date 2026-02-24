@@ -16,8 +16,8 @@
         th, td { padding: 8px; border: 1px solid #ddd; text-align: left; font-size:14px;}
         th { background: #34495e; color: white; }
         
-        /* Pista Admin con CSS Ellisse Perfetta e Wrapper Isolato */
-        #pista-wrapper { width: 450px; height: 225px; position: relative; margin: 30px auto; zoom: 0.9;}
+        /* Pista Admin con CSS Ricalcolato senza zoom! */
+        #pista-wrapper { width: 450px; height: 225px; position: relative; margin: 30px auto;}
         #pista-bg { width: 100%; height: 100%; background: #2d5a3c; border-radius: 50%; border: 45px solid #8B4513; box-sizing: border-box; position: absolute; top:0; left:0;}
         .traguardo { position: absolute; bottom: 0; left: 50%; width: 4px; height: 45px; background: red; transform: translateX(-50%);}
         .cavallo { width: 14px; height: 14px; border-radius: 50%; position: absolute; border: 1px solid #fff; font-size: 8px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 20; transition: all 0.12s linear;}
@@ -40,7 +40,7 @@
     <div style="display: flex; gap: 20px;">
         <div style="flex: 1;">
             <div class="card" style="border-left: 5px solid #e74c3c;">
-                <h3>🚀 Controllo Gara & Pista</h3>
+                <h3>🚀 Controllo Gara & Impostazioni</h3>
                 <button class="btn-toggle" id="btn-switch-timer" onclick="toggleTimer()">MODALITA': TIMER AUTOMATICO</button>
                 
                 <div style="margin-bottom: 15px; background: #eee; padding: 10px; border-radius: 5px; display:flex; flex-direction:column; gap:10px;">
@@ -52,6 +52,20 @@
                         <b>Secondi Timer Partenza:</b>
                         <input type="number" id="set-timer-dur" style="width: 80px; padding: 5px;" placeholder="60">
                     </div>
+                    <hr style="border-top:1px solid #ccc; width:100%;">
+                    
+                    <div>
+                        <b><input type="checkbox" id="yt-enable"> Abilita Canzone YouTube Finale</b>
+                    </div>
+                    <div>
+                        <b>Link o ID YouTube:</b>
+                        <input type="text" id="yt-link" style="width: 150px; padding: 5px;" placeholder="Es: E3m-XH1Kij0">
+                    </div>
+                    <div>
+                        <b>Dal secondo:</b> <input type="number" id="yt-start" style="width: 60px; padding: 5px;">
+                        <b>al secondo:</b> <input type="number" id="yt-end" style="width: 60px; padding: 5px;">
+                    </div>
+                    
                     <button onclick="salvaImpostazioni()" style="padding: 5px 10px; font-size: 14px; background:#2ecc71;">Salva Impostazioni</button>
                 </div>
 
@@ -123,14 +137,23 @@
         function salvaImpostazioni() {
             const valBet = document.getElementById('set-max-bet').value;
             const valTime = document.getElementById('set-timer-dur').value;
-            let payload = {};
+            const ytEnable = document.getElementById('yt-enable').checked;
+            const ytStart = document.getElementById('yt-start').value;
+            const ytEnd = document.getElementById('yt-end').value;
+            
+            // Estrae l'ID del video se qualcuno incolla il link completo
+            let ytLink = document.getElementById('yt-link').value;
+            const match = ytLink.match(/(?:v=|youtu\.be\/)([^&]+)/);
+            if(match) ytLink = match[1]; 
+            
+            let payload = { yt_enabled: ytEnable, yt_url: ytLink };
             if(valBet !== "") payload.max_bet = parseFloat(valBet);
             if(valTime !== "") payload.timer_duration = parseInt(valTime);
+            if(ytStart !== "") payload.yt_start = parseInt(ytStart);
+            if(ytEnd !== "") payload.yt_end = parseInt(ytEnd);
             
-            if(Object.keys(payload).length > 0) {
-                socket.emit('admin_update_settings', payload);
-                alert("Impostazioni salvate con successo!");
-            }
+            socket.emit('admin_update_settings', payload);
+            alert("Impostazioni salvate con successo!");
         }
 
         function forzaPartenza() { socket.emit('admin_force_start'); }
@@ -144,6 +167,10 @@
             
             document.getElementById('set-max-bet').value = s.settings.max_bet;
             document.getElementById('set-timer-dur').value = s.settings.timer_duration;
+            document.getElementById('yt-enable').checked = s.settings.yt_enabled;
+            document.getElementById('yt-link').value = s.settings.yt_url;
+            document.getElementById('yt-start').value = s.settings.yt_start;
+            document.getElementById('yt-end').value = s.settings.yt_end;
 
             const btnToggle = document.getElementById('btn-switch-timer');
             if(s.settings.auto_timer) {
@@ -195,8 +222,9 @@
                     pistaWrapper.appendChild(d);
                     cavalliElements[h.id] = d;
                     
+                    // Matematica dimezzata esattamente rispetto alla pagina utente
                     const centerX = 225; const centerY = 112.5; 
-                    const laneX = 216 - (index * 2.8); const laneY = 104 - (index * 2.8);
+                    const laneX = 217.5 - (index * 3.25); const laneY = 105 - (index * 3.25);
                     const startX = centerX + laneX * Math.cos(Math.PI / 2);
                     const startY = centerY + laneY * Math.sin(Math.PI / 2);
                     d.style.left = (startX - 7) + 'px'; d.style.top = (startY - 7) + 'px';
@@ -208,7 +236,7 @@
             let index = 0;
             Object.keys(pos).forEach(id => {
                 const centerX = 225; const centerY = 112.5; 
-                const laneX = 216 - (index * 2.8); const laneY = 104 - (index * 2.8);
+                const laneX = 217.5 - (index * 3.25); const laneY = 105 - (index * 3.25);
                 const x = centerX + laneX * Math.cos(pos[id] + Math.PI / 2);
                 const y = centerY + laneY * Math.sin(pos[id] + Math.PI / 2);
                 if(cavalliElements[id]) { cavalliElements[id].style.left = (x - 7) +'px'; cavalliElements[id].style.top = (y - 7) +'px'; }
