@@ -13,7 +13,7 @@ data = {
     "admin_stats": {"totale_incassato": 0, "totale_pagato": 0, "bilancio": 0},
     "current_race": {"status": "waiting", "horses": [], "bets": [], "timer": 0},
     "history": [],
-    "settings": {"auto_timer": True} # Nuovo: Switch Timer
+    "settings": {"auto_timer": True}
 }
 
 NOMI_A = ["Western", "Più Forte", "Lord", "Stud", "National", "Golden", "Pocket", "Diamond", "Wild", "Cowboy"]
@@ -30,7 +30,7 @@ def genera_nuova_corsa():
             "id": i + 1, "nome": nomi[i], 
             "quota_v": max(1.20, quota_v),
             "quota_p": max(1.10, round(quota_v / 3, 2)), 
-            "quota_u": max(1.50, round(quota_v * 0.8, 2)), # Quota Ultimo
+            "quota_u": max(1.50, round(quota_v * 0.8, 2)), 
             "colore": f"#{random.randint(100,255):02x}{random.randint(100,255):02x}{random.randint(100,255):02x}"
         })
     return horses
@@ -48,12 +48,15 @@ def send_update(): emit('update_data', data)
 
 @socketio.on('admin_update_wallet')
 def handle_wallet(req):
-    user = req['user']
-    password = req.get('password', '1234')
+    user = req['user'].strip()
+    password = req.get('password', '').strip()
     amount = req['amount']
-    if user not in data["users"]: data["users"][user] = {"wallet": 0, "password": password}
+    
+    if user not in data["users"]: 
+        data["users"][user] = {"wallet": 0, "password": password if password else "1234"}
     else:
         if password != "": data["users"][user]["password"] = password
+        
     data["users"][user]["wallet"] += amount
     socketio.emit('update_data', data)
 
@@ -74,8 +77,9 @@ def force_start():
 
 @socketio.on('tentativo_login')
 def login_check(req):
-    user = req.get('user')
-    pwd = req.get('password')
+    user = req.get('user', '').strip()
+    pwd = req.get('password', '').strip()
+    
     if user in data["users"] and data["users"][user]["password"] == pwd:
         if user not in data["online_users"]: data["online_users"].append(user)
         emit('login_success', {"user": user})
@@ -138,7 +142,6 @@ def start_race():
     id_terzo = classifica[2]["id"]
     id_ultimo = classifica[-1]["id"]
     
-    # CALCOLO VINCITE
     vincitori_gara = []
     totale_pagato_gara = 0
     for bet in race["bets"]:
