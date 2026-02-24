@@ -109,3 +109,109 @@
     </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pannello Gestore - Corse Cavalli</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #eceff1; padding: 20px; color: #333;}
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;}
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        
+        /* Box Statistiche */
+        .stats { display: flex; gap: 20px; margin-bottom: 20px;}
+        .stat-box { flex: 1; padding: 20px; border-radius: 8px; text-align: center; color: white; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);}
+        
+        /* Form e Pulsanti */
+        input { padding: 10px; font-size: 16px; border: 1px solid #bdc3c7; border-radius: 4px; margin-right: 10px;}
+        button { padding: 10px 20px; font-size: 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;}
+        button:hover { background: #2980b9; }
+        
+        /* Tabelle */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: center; }
+        th { background: #34495e; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🏦 Ricevitoria Scommesse - Pannello di Controllo</h1>
+
+    <div class="stats">
+        <div class="stat-box" style="background: #27ae60;">
+            Incasso Totale<br><span id="inc" style="font-size: 30px;">0</span> €
+        </div>
+        <div class="stat-box" style="background: #e74c3c;">
+            Vincite Pagate<br><span id="pag" style="font-size: 30px;">0</span> €
+        </div>
+        <div class="stat-box" style="background: #8e44ad;">
+            Utile Banco<br><span id="util" style="font-size: 30px;">0</span> €
+        </div>
+    </div>
+
+    <div class="card" style="border-left: 5px solid #3498db;">
+        <h3>➕ Crea Nuovo Utente o Ricarica Conto</h3>
+        <p>Inserisci un nome utente, una password da dargli, e l'importo da caricare (per togliere soldi metti il segno meno "-").</p>
+        <input type="text" id="nuovo-user" placeholder="Nome Utente">
+        <input type="text" id="nuova-pass" placeholder="Password">
+        <input type="number" id="importo" placeholder="Importo (€)" style="width: 150px;">
+        <button onclick="gestioneSoldi()">Conferma Operazione</button>
+    </div>
+
+    <div class="card" style="border-left: 5px solid #f39c12;">
+        <h3>📊 Tabellone Scommesse (Gara in attesa/in corso)</h3>
+        <table id="tabella-scommesse">
+            <thead>
+                <tr>
+                    <th>Codice Giocatore</th>
+                    <th>N° Cavallo Puntato</th>
+                    <th>Importo Scommessa</th>
+                    <th>Quota Bloccata</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+    </div>
+
+    <script>
+        const socket = io();
+
+        // Chiede l'aggiornamento appena si apre la pagina admin
+        socket.emit('request_update');
+
+        function gestioneSoldi() {
+            const user = document.getElementById('nuovo-user').value.trim();
+            const pass = document.getElementById('nuova-pass').value.trim();
+            const amt = document.getElementById('importo').value;
+            
+            if(user !== "" && amt !== "") {
+                socket.emit('admin_update_wallet', {user: user, password: pass, amount: parseInt(amt)});
+                document.getElementById('importo').value = ""; // Pulisce il campo
+                document.getElementById('nuova-pass').value = ""; // Pulisce la password
+                alert("Operazione eseguita con successo su " + user);
+            } else {
+                alert("Inserisci Nome Utente, e Importo!");
+            }
+        }
+
+        socket.on('update_data', (serverData) => {
+            // Aggiorna le statistiche in alto
+            document.getElementById('inc').innerText = serverData.admin_stats.totale_incassato;
+            document.getElementById('pag').innerText = serverData.admin_stats.totale_pagato;
+            document.getElementById('util').innerText = serverData.admin_stats.bilancio;
+
+            // Aggiorna la tabella delle scommesse
+            const tbody = document.querySelector('#tabella-scommesse tbody');
+            tbody.innerHTML = "";
+            
+            if(serverData.current_race.bets.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4">Nessuna scommessa per questa corsa.</td></tr>';
+            } else {
+                serverData.current_race.bets.forEach(b => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><b>${b.user}</b></td>
+                            <td>Cavallo N° ${b.horse_id}</td>
+                            <td style="color: green; font-weight: bold;">${b.amount} €</td>
+                            <td>${b.quota}</td>
