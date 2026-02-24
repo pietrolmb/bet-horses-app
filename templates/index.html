@@ -1,52 +1,115 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Corse Cavalli Live</title>
+    <title>🏇 Horse Racing Live</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        body { background: #1a472a; color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #pista-container { 
-            width: 900px; height: 500px; margin: 20px auto; position: relative;
-            background: #2d5a3c; border: 10px solid #5d4037; border-radius: 250px; /* Effetto ovale */
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-        }
-        .cavallo { 
-            width: 25px; height: 25px; border-radius: 50%; position: absolute; 
-            border: 2px solid white; font-weight: bold; font-size: 14px; 
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.1s linear;
-        }
+        body { background: #1a472a; color: white; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        #pista { width: 800px; height: 400px; margin: 20px; position: relative; background: #2d5a3c; border: 10px solid #5d4037; border-radius: 200px; box-shadow: inset 0 0 50px #000; overflow: hidden; }
+        .cavallo { width: 22px; height: 22px; border-radius: 50%; position: absolute; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; transition: all 0.1s linear; z-index: 10; }
+        
+        /* Pannello Giocatore */
+        #game-interface { width: 90%; max-width: 1000px; background: #222; padding: 20px; border-radius: 15px; border: 2px solid #gold; margin-bottom: 50px; }
+        .login-box { padding: 20px; border: 1px dashed #555; margin-bottom: 20px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; border-bottom: 1px solid #444; text-align: center; }
+        .btn-bet { background: #d4af37; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-bet:hover { background: #fff; }
+        
+        #timer-display { font-size: 2em; color: #ffcc00; margin: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>🏇 Virtual Horse Racing</h1>
-    <div id="pista-container">
+
+    <div id="pista"></div>
+    <div id="timer-display">IN ATTESA DI GIOCATORI</div>
+
+    <div id="game-interface">
+        <div id="login-section" class="login-box">
+            <h3>🔑 Inserisci il tuo Codice Utente</h3>
+            <input type="text" id="user-code" placeholder="Es: player1">
+            <button onclick="login()">Accedi</button>
         </div>
-    <h2 id="timer">In attesa di scommesse...</h2>
+
+        <div id="betting-section" style="display:none;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3>Benvenuto, <span id="display-username"></span>!</h3>
+                <h2 style="color: #00ff00;">Saldo: <span id="display-balance">0</span>€</h2>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Cavallo</th>
+                        <th>Vincente</th>
+                        <th>Piazzato</th>
+                        <th>Azione</th>
+                    </tr>
+                </thead>
+                <tbody id="horse-table-body">
+                    </tbody>
+            </table>
+        </div>
+    </div>
 
     <script>
         const socket = io();
-        // Qui collegheremo i movimenti inviati dal server
+        let myUserCode = "";
+        let horsesData = [];
+
+        function login() {
+            const code = document.getElementById('user-code').value;
+            if(code) {
+                myUserCode = code;
+                document.getElementById('login-section').style.display = 'none';
+                document.getElementById('betting-section').style.display = 'block';
+                document.getElementById('display-username').innerText = code;
+                socket.emit('request_update'); // Chiedi al server i dati aggiornati
+            }
+        }
+
+        socket.on('update_data', (serverData) => {
+            const race = serverData.current_race;
+            const user = serverData.users[myUserCode];
+            
+            if(user) document.getElementById('display-balance').innerText = user.wallet;
+
+            // Aggiorna Tabella Cavalli
+            const tbody = document.getElementById('horse-table-body');
+            tbody.innerHTML = "";
+            race.horses.forEach(h => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><b style="color:${h.colore}">${h.id}</b></td>
+                        <td>${h.nome}</td>
+                        <td style="color:#ffcc00">${h.quota_v}</td>
+                        <td style="color:#aaa">${h.quota_p || '---'}</td>
+                        <td>
+                            <input type="number" id="amt-${h.id}" style="width:50px" value="2">
+                            <button class="btn-bet" onclick="punta(${h.id})">PUNTA</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        });
+
+        function punta(horseId) {
+            const amount = document.getElementById(`amt-${horseId}`).value;
+            socket.emit('place_bet', {
+                user: myUserCode,
+                amount: parseInt(amount),
+                horse_id: horseId,
+                type: 'vincente'
+            });
+        }
+
+        socket.on('timer_update', (t) => {
+            document.getElementById('timer-display').innerText = "PARTENZA TRA: " + t + "s";
+        });
+        
+        // ... (qui andrà la logica dei pallini che abbiamo già visto)
     </script>
 </body>
 </html>
-// Caricamento suoni
-const sparo = new Audio('https://www.soundjay.com/mechanical/gun-shot-01.mp3');
-const folla = new Audio('https://www.soundjay.com/misc/sounds/crowd-cheer-01.mp3');
-const bip = new Audio('https://www.soundjay.com/button/beep-07.mp3');
-
-socket.on('timer_update', (t) => {
-    document.getElementById('timer').innerText = "Partenza in: " + t + "s";
-    if (t <= 3 && t > 0) bip.play(); // Bip negli ultimi 3 secondi
-});
-
-socket.on('race_start', () => {
-    sparo.play();
-    folla.play();
-    folla.loop = true; // La folla urla per tutta la gara
-});
-
-socket.on('update_data', (data) => {
-    folla.pause(); // La folla smette quando la gara finisce
-    folla.currentTime = 0;
-});
