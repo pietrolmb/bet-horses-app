@@ -30,9 +30,9 @@
     <h1>🏦 Ricevitoria - Pannello Admin</h1>
 
     <div class="stats">
-        <div class="stat-box" style="background:#27ae60;">Incasso<br><span id="inc">0</span> €</div>
-        <div class="stat-box" style="background:#e74c3c;">Pagato<br><span id="pag">0</span> €</div>
-        <div class="stat-box" style="background:#8e44ad;">Utile<br><span id="util">0</span> €</div>
+        <div class="stat-box" style="background:#27ae60;">Incasso<br><span id="inc">0.00</span> €</div>
+        <div class="stat-box" style="background:#e74c3c;">Pagato<br><span id="pag">0.00</span> €</div>
+        <div class="stat-box" style="background:#8e44ad;">Utile<br><span id="util">0.00</span> €</div>
     </div>
 
     <div style="display: flex; gap: 20px;">
@@ -40,6 +40,13 @@
             <div class="card" style="border-left: 5px solid #e74c3c;">
                 <h3>🚀 Controllo Gara & Pista</h3>
                 <button class="btn-toggle" id="btn-switch-timer" onclick="toggleTimer()">MODALITA': TIMER AUTOMATICO</button>
+                
+                <div style="margin-bottom: 15px; background: #eee; padding: 10px; border-radius: 5px;">
+                    <b>Limite Puntata Massima (€):</b>
+                    <input type="number" id="set-max-bet" style="width: 80px; padding: 5px;" placeholder="0 = Infinito">
+                    <button onclick="salvaMaxBet()" style="padding: 5px 10px; font-size: 14px;">Salva Limite</button>
+                </div>
+
                 <button class="btn-forza" onclick="forzaPartenza()">FORZA PARTENZA ORA</button>
                 <div style="margin-top:30px; margin-bottom:20px;">
                     <div id="pista-container"><div class="traguardo"></div></div>
@@ -74,8 +81,7 @@
             
             <div class="card" style="border-left: 5px solid #27ae60;">
                 <h3>📚 Storico Completo Gare (Clicca per espandere)</h3>
-                <div id="storico-gare-container" style="max-height: 500px; overflow-y: auto;">
-                    </div>
+                <div id="storico-gare-container" style="max-height: 500px; overflow-y: auto;"></div>
             </div>
         </div>
     </div>
@@ -83,7 +89,7 @@
     <script>
         const socket = io();
         let cavalliElements = {};
-        let openAccordions = {}; // Ricorda quali schede sono aperte
+        let openAccordions = {}; 
         socket.emit('request_update');
 
         function toggleRace(id) {
@@ -100,8 +106,16 @@
             const pass = document.getElementById('nuova-pass').value.trim();
             const amt = document.getElementById('importo').value;
             if(user === "" || pass === "" || amt === "") { alert("Campi vuoti!"); return; }
-            socket.emit('admin_update_wallet', {user: user, password: pass, amount: parseInt(amt)});
+            socket.emit('admin_update_wallet', {user: user, password: pass, amount: parseFloat(amt)});
             document.getElementById('importo').value = ""; alert("Completato!");
+        }
+
+        function salvaMaxBet() {
+            const val = document.getElementById('set-max-bet').value;
+            if(val !== "") {
+                socket.emit('admin_update_settings', {max_bet: parseFloat(val)});
+                alert("Limite aggiornato! (0 = Nessun limite)");
+            }
         }
 
         function forzaPartenza() { socket.emit('admin_force_start'); }
@@ -109,10 +123,12 @@
 
         socket.on('update_data', (s) => {
             const r = s.current_race;
-            document.getElementById('inc').innerText = s.admin_stats.totale_incassato;
-            document.getElementById('pag').innerText = s.admin_stats.totale_pagato;
-            document.getElementById('util').innerText = s.admin_stats.bilancio;
+            document.getElementById('inc').innerText = parseFloat(s.admin_stats.totale_incassato).toFixed(2);
+            document.getElementById('pag').innerText = parseFloat(s.admin_stats.totale_pagato).toFixed(2);
+            document.getElementById('util').innerText = parseFloat(s.admin_stats.bilancio).toFixed(2);
             
+            document.getElementById('set-max-bet').value = s.settings.max_bet;
+
             const btnToggle = document.getElementById('btn-switch-timer');
             if(s.settings.auto_timer) {
                 btnToggle.innerText = "MODALITA': TIMER 60s ATTIVO"; btnToggle.style.background = "#2ecc71";
@@ -120,7 +136,6 @@
                 btnToggle.innerText = "MODALITA': MANUALE"; btnToggle.style.background = "#e67e22";
             }
             
-            // Popola Storico Gare Cliccabile
             const contStorico = document.getElementById('storico-gare-container');
             contStorico.innerHTML = s.history.length === 0 ? "<p>Nessuna gara conclusa.</p>" : "";
             s.history.slice().reverse().forEach(h => {
@@ -135,7 +150,7 @@
                         <ul style="margin-top:0; font-size:14px;">`;
                 if(h.scommesse.length === 0) html += `<li>Nessuna scommessa registrata.</li>`;
                 h.scommesse.forEach(b => {
-                    html += `<li><b>${b.user}</b> -> ${b.amount}€ su N°${b.horse_id} (${b.type}) a quota ${b.quota}</li>`;
+                    html += `<li><b>${b.user}</b> -> ${parseFloat(b.amount).toFixed(2)}€ su N°${b.horse_id} (${b.type}) a quota ${b.quota}</li>`;
                 });
                 html += `</ul></div></div>`;
                 contStorico.innerHTML += html;
@@ -143,13 +158,13 @@
 
             const tbodyScommesse = document.querySelector('#tabella-scommesse tbody');
             tbodyScommesse.innerHTML = r.bets.length === 0 ? '<tr><td colspan="5">Nessuna scommessa in corso.</td></tr>' : "";
-            r.bets.forEach(b => tbodyScommesse.innerHTML += `<tr><td><b>${b.user}</b></td><td>N°${b.horse_id}</td><td>${b.type}</td><td style="color:green;">${b.amount} €</td><td>${b.quota}</td></tr>`);
+            r.bets.forEach(b => tbodyScommesse.innerHTML += `<tr><td><b>${b.user}</b></td><td>N°${b.horse_id}</td><td>${b.type}</td><td style="color:green;">${parseFloat(b.amount).toFixed(2)} €</td><td>${b.quota}</td></tr>`);
 
             const tbodyUtenti = document.querySelector('#tabella-utenti tbody');
             tbodyUtenti.innerHTML = Object.keys(s.users).length === 0 ? '<tr><td colspan="3">Nessun utente.</td></tr>' : "";
             for (const [nomeUtente, datiUtente] of Object.entries(s.users)) {
                 const isOnline = s.online_users.includes(nomeUtente) ? "🟢 On" : "⚪ Off";
-                tbodyUtenti.innerHTML += `<tr><td><b>${nomeUtente}</b></td><td>${datiUtente.wallet} €</td><td>${isOnline}</td></tr>`;
+                tbodyUtenti.innerHTML += `<tr><td><b>${nomeUtente}</b></td><td>${parseFloat(datiUtente.wallet).toFixed(2)} €</td><td>${isOnline}</td></tr>`;
             }
 
             const pista = document.getElementById('pista-container');
@@ -164,10 +179,8 @@
                     pista.appendChild(d);
                     cavalliElements[h.id] = d;
                     
-                    const centerX = 225; 
-                    const centerY = 112.5; 
-                    const laneX = 217 - (index * 3); 
-                    const laneY = 105 - (index * 3);
+                    const centerX = 225; const centerY = 112.5; 
+                    const laneX = 217 - (index * 3); const laneY = 105 - (index * 3);
                     const startX = centerX + laneX * Math.cos(Math.PI / 2);
                     const startY = centerY + laneY * Math.sin(Math.PI / 2);
                     d.style.left = (startX - 7) + 'px'; d.style.top = (startY - 7) + 'px';
@@ -178,10 +191,8 @@
         socket.on('race_update', (pos) => {
             let index = 0;
             Object.keys(pos).forEach(id => {
-                const centerX = 225; 
-                const centerY = 112.5; 
-                const laneX = 217 - (index * 3);
-                const laneY = 105 - (index * 3);
+                const centerX = 225; const centerY = 112.5; 
+                const laneX = 217 - (index * 3); const laneY = 105 - (index * 3);
                 const x = centerX + laneX * Math.cos(pos[id] + Math.PI / 2);
                 const y = centerY + laneY * Math.sin(pos[id] + Math.PI / 2);
                 if(cavalliElements[id]) { cavalliElements[id].style.left = (x - 7) +'px'; cavalliElements[id].style.top = (y - 7) +'px'; }
