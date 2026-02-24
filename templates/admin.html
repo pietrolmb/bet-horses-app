@@ -49,7 +49,7 @@
         <div style="flex: 1;">
             
             <div class="card" style="border-left: 5px solid #3498db;">
-                <h3>➕ Gestione Utenti (Ricarica e Crea)</h3>
+                <h3>➕ Gestione Utenti</h3>
                 <input type="text" id="nuovo-u" placeholder="Nome Utente"> 
                 <input type="text" id="nuova-p" placeholder="Password"> 
                 <input type="number" id="imp" placeholder="Euro" style="width:80px;">
@@ -63,8 +63,10 @@
             
             <div class="card" style="border-left: 5px solid #e74c3c;">
                 <h3>⚙️ Regia YouTube e Limiti Scommessa</h3>
+                <button id="btn-switch-timer" onclick="toggleTimer()" style="width:100%; margin-bottom:15px;">TIMER AUTOMATICO</button>
+                
                 <div style="background:#f9f9f9; padding:15px; border-radius:5px; border:1px solid #ddd;">
-                    <p><b>Limiti Puntata Massima (€) - Metti 0 per Infiniti</b></p>
+                    <p><b>Limiti Puntata Massima (€) - Metti 0 per Nessun Limite</b></p>
                     Singola: <input type="number" id="max-s" style="width:60px;"> 
                     Accoppiata: <input type="number" id="max-a" style="width:60px;"> 
                     Trio: <input type="number" id="max-t" style="width:60px;">
@@ -75,21 +77,21 @@
                     Cavalli in pista: Da <input type="number" id="min-h" style="width:40px;"> a <input type="number" id="max-h" style="width:40px;">
                     
                     <hr style="margin:15px 0;">
-                    <p><b>🎵 Regia YouTube (Incolla l'ID del video o il link)</b></p>
+                    <p><b>🎵 Regia YouTube (Incolla l'ID o il link intero)</b></p>
                     <table style="width:100%; background:transparent; border:none;">
                         <tr>
                             <td style="border:none;"><input type="checkbox" id="y-w-e"> Attesa</td>
-                            <td style="border:none;"><input type="text" id="y-w-u" placeholder="ID Video YouTube" style="width:120px;"></td>
+                            <td style="border:none;"><input type="text" id="y-w-u" placeholder="ID Video" style="width:120px;"></td>
                             <td style="border:none;">Da <input type="number" id="y-w-s" style="width:45px;"> a <input type="number" id="y-w-end" style="width:45px;">s</td>
                         </tr>
                         <tr>
                             <td style="border:none;"><input type="checkbox" id="y-r-e"> Gara</td>
-                            <td style="border:none;"><input type="text" id="y-r-u" placeholder="ID Video YouTube" style="width:120px;"></td>
+                            <td style="border:none;"><input type="text" id="y-r-u" placeholder="ID Video" style="width:120px;"></td>
                             <td style="border:none;">Da <input type="number" id="y-r-s" style="width:45px;"> a <input type="number" id="y-r-end" style="width:45px;">s</td>
                         </tr>
                         <tr>
                             <td style="border:none;"><input type="checkbox" id="y-v-e"> Vittoria</td>
-                            <td style="border:none;"><input type="text" id="y-v-u" placeholder="ID Video YouTube" style="width:120px;"></td>
+                            <td style="border:none;"><input type="text" id="y-v-u" placeholder="ID Video" style="width:120px;"></td>
                             <td style="border:none;">Da <input type="number" id="y-v-s" style="width:45px;"> a <input type="number" id="y-v-end" style="width:45px;">s</td>
                         </tr>
                     </table>
@@ -123,7 +125,6 @@
         const socket = io();
         let cavalliElements = {};
         
-        // LOGIN
         function loginAdmin() { 
             socket.emit('admin_login', {user: document.getElementById('adm-user').value, pass: document.getElementById('adm-pass').value}); 
         }
@@ -135,7 +136,6 @@
         
         socket.on('admin_auth_error', (m) => alert("❌ " + m));
         
-        // AZIONI
         function gestioneSoldi() { 
             const u = document.getElementById('nuovo-u').value.trim();
             const a = document.getElementById('imp').value;
@@ -148,28 +148,27 @@
         function salvaSetts() { 
             const ext = (v) => { const m = v.match(/(?:v=|youtu\.be\/)([^&]+)/); return m ? m[1] : v; };
             socket.emit('admin_update_settings', { 
-                max_bet_singola: document.getElementById('max-s').value, 
-                max_bet_accoppiata: document.getElementById('max-a').value, 
-                max_bet_trio: document.getElementById('max-t').value, 
-                timer_duration: document.getElementById('set-timer').value, 
-                min_horses: document.getElementById('min-h').value, 
-                max_horses: document.getElementById('max-h').value, 
-                yt_wait_enable: document.getElementById('y-w-e').checked, yt_wait_url: ext(document.getElementById('y-w-u').value), yt_wait_start: document.getElementById('y-w-s').value, yt_wait_end: document.getElementById('y-w-end').value,
-                yt_race_enable: document.getElementById('y-r-e').checked, yt_race_url: ext(document.getElementById('y-r-u').value), yt_race_start: document.getElementById('y-r-s').value, yt_race_end: document.getElementById('y-r-end').value,
-                yt_win_enable: document.getElementById('y-v-e').checked, yt_win_url: ext(document.getElementById('y-v-u').value), yt_win_start: document.getElementById('y-v-s').value, yt_win_end: document.getElementById('y-v-end').value
+                max_bet_singola: parseFloat(document.getElementById('max-s').value)||0, 
+                max_bet_accoppiata: parseFloat(document.getElementById('max-a').value)||0, 
+                max_bet_trio: parseFloat(document.getElementById('max-t').value)||0, 
+                timer_duration: parseInt(document.getElementById('set-timer').value)||60, 
+                min_horses: parseInt(document.getElementById('min-h').value)||6, 
+                max_horses: parseInt(document.getElementById('max-h').value)||9, 
+                yt_wait_enable: document.getElementById('y-w-e').checked, yt_wait_url: ext(document.getElementById('y-w-u').value), yt_wait_start: parseInt(document.getElementById('y-w-s').value)||0, yt_wait_end: parseInt(document.getElementById('y-w-end').value)||0,
+                yt_race_enable: document.getElementById('y-r-e').checked, yt_race_url: ext(document.getElementById('y-r-u').value), yt_race_start: parseInt(document.getElementById('y-r-s').value)||0, yt_race_end: parseInt(document.getElementById('y-r-end').value)||0,
+                yt_win_enable: document.getElementById('y-v-e').checked, yt_win_url: ext(document.getElementById('y-v-u').value), yt_win_start: parseInt(document.getElementById('y-v-s').value)||0, yt_win_end: parseInt(document.getElementById('y-v-end').value)||0
             }); 
             alert("Impostazioni Salvate!"); 
         }
         
         function forzaPartenza() { socket.emit('admin_force_start'); }
+        function toggleTimer() { socket.emit('admin_toggle_timer'); }
         
-        // AGGIORNAMENTO DATI
         socket.on('update_data', (s) => {
             document.getElementById('inc').innerText = s.admin_stats.totale_incassato.toFixed(2);
             document.getElementById('pag').innerText = s.admin_stats.totale_pagato.toFixed(2);
             document.getElementById('util').innerText = s.admin_stats.bilancio.toFixed(2);
             
-            // Tabella Utenti
             const tbU = document.querySelector('#tab-utenti tbody'); 
             tbU.innerHTML = "";
             for(let n in s.users){ 
@@ -178,14 +177,12 @@
                 tbU.innerHTML+=`<tr><td><b>${n}</b> ${onl}</td><td><b style="color:green;">${u.wallet.toFixed(2)}€</b></td><td>${u.tot_dep.toFixed(2)}€</td><td>${u.tot_vin.toFixed(2)}€</td><td style="color:red;">${u.tot_per.toFixed(2)}€</td></tr>`; 
             }
             
-            // Tabella Scommesse in Corso
             const tbS = document.querySelector('#tab-scommesse tbody'); 
             tbS.innerHTML = "";
             s.current_race.bets.forEach(b => {
-                tbS.innerHTML+=`<tr><td><b>${b.user}</b></td><td>${b.dettaglio}</td><td><b>${b.amount.toFixed(2)}€</b></td><td><span class="esito-attesa">In Attesa</span></td></tr>`;
+                tbS.innerHTML+=`<tr><td><b>${b.user}</b></td><td>${b.dettaglio} (Q: ${b.quota})</td><td><b>${b.amount.toFixed(2)}€</b></td><td><span class="esito-attesa">In Attesa</span></td></tr>`;
             });
             
-            // Storico
             const stC = document.getElementById('storico-cont'); 
             stC.innerHTML = "";
             s.history.slice().reverse().forEach(h => {
@@ -201,7 +198,6 @@
                 stC.innerHTML += html + `</ul></div>`;
             });
             
-            // Popola Input Settings
             document.getElementById('max-s').value = s.settings.max_bet_singola;
             document.getElementById('max-a').value = s.settings.max_bet_accoppiata;
             document.getElementById('max-t').value = s.settings.max_bet_trio;
@@ -213,7 +209,10 @@
             document.getElementById('y-r-e').checked = s.settings.yt_race_enable; document.getElementById('y-r-u').value = s.settings.yt_race_url; document.getElementById('y-r-s').value = s.settings.yt_race_start; document.getElementById('y-r-end').value = s.settings.yt_race_end;
             document.getElementById('y-v-e').checked = s.settings.yt_win_enable; document.getElementById('y-v-u').value = s.settings.yt_win_url; document.getElementById('y-v-s').value = s.settings.yt_win_start; document.getElementById('y-v-end').value = s.settings.yt_win_end;
             
-            // Animazione Pista Admin
+            const btnToggle = document.getElementById('btn-switch-timer');
+            if(s.settings.auto_timer) { btnToggle.innerText = "MODALITA': TIMER ATTIVO"; btnToggle.style.background = "#2ecc71"; } 
+            else { btnToggle.innerText = "MODALITA': MANUALE"; btnToggle.style.background = "#e67e22"; }
+            
             const pistaWrapper = document.getElementById('pista-wrapper');
             if(s.current_race.status === "waiting" && s.current_race.bets.length === 0) {
                 document.querySelectorAll('.cavallo').forEach(e => e.remove());
@@ -226,7 +225,7 @@
                     pistaWrapper.appendChild(d); cavalliElements[h.id] = d;
                     
                     const centerX = 225; const centerY = 112.5; 
-                    const laneX = 217.5 - (index * 3.25); const laneY = 105 - (index * 3.25);
+                    const laneX = 217.5 - (index * 3); const laneY = 105 - (index * 3);
                     const startX = centerX + laneX * Math.cos(Math.PI / 2);
                     const startY = centerY + laneY * Math.sin(Math.PI / 2);
                     d.style.left = (startX - 7) + 'px'; d.style.top = (startY - 7) + 'px';
@@ -238,7 +237,7 @@
             let index = 0;
             Object.keys(pos).forEach(id => {
                 const centerX = 225; const centerY = 112.5; 
-                const laneX = 217.5 - (index * 3.25); const laneY = 105 - (index * 3.25);
+                const laneX = 217.5 - (index * 3); const laneY = 105 - (index * 3);
                 const x = centerX + laneX * Math.cos(pos[id] + Math.PI / 2);
                 const y = centerY + laneY * Math.sin(pos[id] + Math.PI / 2);
                 if(cavalliElements[id]) { cavalliElements[id].style.left = (x - 7) +'px'; cavalliElements[id].style.top = (y - 7) +'px'; }
