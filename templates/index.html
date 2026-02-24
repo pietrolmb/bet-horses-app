@@ -5,19 +5,26 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
         body { background: #1a472a; color: white; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; }
-        #pista { width: 800px; height: 400px; margin: 20px; position: relative; background: #2d5a3c; border: 10px solid #5d4037; border-radius: 200px; box-shadow: inset 0 0 50px #000; overflow: hidden; }
-        .cavallo { width: 22px; height: 22px; border-radius: 50%; position: absolute; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; transition: all 0.1s linear; z-index: 10; }
         
-        /* Pannello Giocatore */
-        #game-interface { width: 90%; max-width: 1000px; background: #222; padding: 20px; border-radius: 15px; border: 2px solid #gold; margin-bottom: 50px; }
-        .login-box { padding: 20px; border: 1px dashed #555; margin-bottom: 20px; }
+        /* PISTA OVALE */
+        #pista { width: 800px; height: 350px; margin: 20px; position: relative; background: #2d5a3c; border: 10px solid #5d4037; border-radius: 200px; box-shadow: inset 0 0 50px #000; overflow: hidden; }
+        .cavallo { width: 22px; height: 22px; border-radius: 50%; position: absolute; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; transition: all 0.1s linear; z-index: 10; color: black;}
         
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        /* PANNELLO GIOCATORE */
+        #game-interface { width: 90%; max-width: 900px; background: #222; padding: 20px; border-radius: 15px; border: 2px solid gold; margin-bottom: 20px; }
+        .login-box { padding: 20px; border: 1px dashed #555; text-align: center; }
+        .login-box input { padding: 10px; font-size: 16px; }
+        .login-box button { padding: 10px 20px; font-size: 16px; background: gold; border: none; cursor: pointer; font-weight: bold;}
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #333;}
         th, td { padding: 10px; border-bottom: 1px solid #444; text-align: center; }
         .btn-bet { background: #d4af37; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         .btn-bet:hover { background: #fff; }
         
-        #timer-display { font-size: 2em; color: #ffcc00; margin: 10px; font-weight: bold; }
+        #timer-display { font-size: 2em; color: #ffcc00; margin: 10px; font-weight: bold; text-align: center;}
+        
+        /* SCOMMESSE FATTE */
+        #mie-scommesse { margin-top: 20px; padding: 10px; background: #111; border-radius: 8px; border: 1px solid #555;}
     </style>
 </head>
 <body>
@@ -26,16 +33,18 @@
     <div id="timer-display">IN ATTESA DI GIOCATORI</div>
 
     <div id="game-interface">
+        
         <div id="login-section" class="login-box">
-            <h3>🔑 Inserisci il tuo Codice Utente</h3>
+            <h3>🔑 Inserisci il tuo Codice Utente per giocare</h3>
+            <p>Se non hai un codice, chiedilo al gestore.</p>
             <input type="text" id="user-code" placeholder="Es: player1">
-            <button onclick="login()">Accedi</button>
+            <button onclick="eseguiLogin()">Accedi</button>
         </div>
 
         <div id="betting-section" style="display:none;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <h3>Benvenuto, <span id="display-username"></span>!</h3>
-                <h2 style="color: #00ff00;">Saldo: <span id="display-balance">0</span>€</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 10px;">
+                <h3>👤 Utente: <span id="display-username" style="color: gold;"></span></h3>
+                <h2>Saldo: <span id="display-balance" style="color: #00ff00;">0</span>€</h2>
             </div>
             
             <table>
@@ -43,73 +52,146 @@
                     <tr>
                         <th>N°</th>
                         <th>Cavallo</th>
-                        <th>Vincente</th>
-                        <th>Piazzato</th>
+                        <th>Quota Vincente</th>
+                        <th>Puntata (€)</th>
                         <th>Azione</th>
                     </tr>
                 </thead>
                 <tbody id="horse-table-body">
                     </tbody>
             </table>
+            
+            <div id="mie-scommesse">
+                <h4>Scommesse confermate per questa corsa:</h4>
+                <ul id="lista-scommesse">Nessuna scommessa effettuata.</ul>
+            </div>
         </div>
     </div>
 
     <script>
         const socket = io();
         let myUserCode = "";
-        let horsesData = [];
+        let cavalliElements = {};
 
-        function login() {
-            const code = document.getElementById('user-code').value;
-            if(code) {
+        // LOGIN
+        function eseguiLogin() {
+            const code = document.getElementById('user-code').value.trim();
+            if(code !== "") {
                 myUserCode = code;
                 document.getElementById('login-section').style.display = 'none';
                 document.getElementById('betting-section').style.display = 'block';
                 document.getElementById('display-username').innerText = code;
-                socket.emit('request_update'); // Chiedi al server i dati aggiornati
+                socket.emit('request_update'); // Chiedi i dati aggiornati
             }
         }
 
+        // AGGIORNAMENTO DATI DAL SERVER
         socket.on('update_data', (serverData) => {
             const race = serverData.current_race;
-            const user = serverData.users[myUserCode];
+            const users = serverData.users;
             
-            if(user) document.getElementById('display-balance').innerText = user.wallet;
+            // Aggiorna saldo se loggato
+            if(myUserCode && users[myUserCode]) {
+                document.getElementById('display-balance').innerText = users[myUserCode].wallet;
+            } else if (myUserCode) {
+                // Se fa login ma l'admin non lo ha ancora creato
+                document.getElementById('display-balance').innerText = "0 (In attesa di ricarica)";
+            }
 
-            // Aggiorna Tabella Cavalli
+            // Disegna Pallini sulla pista se non ci sono
+            const pista = document.getElementById('pista');
+            if(race.status === "waiting" && Object.keys(cavalliElements).length === 0) {
+                pista.innerHTML = "";
+                race.horses.forEach(h => {
+                    const div = document.createElement('div');
+                    div.className = 'cavallo';
+                    div.style.backgroundColor = h.colore;
+                    div.innerText = h.id;
+                    pista.appendChild(div);
+                    cavalliElements[h.id] = div;
+                    
+                    // Posiziona tutti alla partenza (angolo 0 dell'ovale)
+                    const x = 400 + 350 * Math.cos(0);
+                    const y = 175 + 130 * Math.sin(0);
+                    div.style.left = x + 'px';
+                    div.style.top = y + 'px';
+                });
+            }
+
+            // Popola Tabella Scommesse
             const tbody = document.getElementById('horse-table-body');
             tbody.innerHTML = "";
             race.horses.forEach(h => {
+                // Disabilita i pulsanti se la corsa è in partenza/in corso
+                const disabilita = race.status !== "waiting" ? "disabled" : "";
                 tbody.innerHTML += `
                     <tr>
-                        <td><b style="color:${h.colore}">${h.id}</b></td>
+                        <td><div style="background:${h.colore}; color:black; width:20px; height:20px; border-radius:50%; margin:auto; font-weight:bold;">${h.id}</div></td>
                         <td>${h.nome}</td>
-                        <td style="color:#ffcc00">${h.quota_v}</td>
-                        <td style="color:#aaa">${h.quota_p || '---'}</td>
-                        <td>
-                            <input type="number" id="amt-${h.id}" style="width:50px" value="2">
-                            <button class="btn-bet" onclick="punta(${h.id})">PUNTA</button>
-                        </td>
+                        <td style="color:#ffcc00; font-weight:bold; font-size:18px;">${h.quota_v}</td>
+                        <td><input type="number" id="amt-${h.id}" style="width:60px; padding:5px;" value="5" ${disabilita}></td>
+                        <td><button class="btn-bet" onclick="punta(${h.id})" ${disabilita}>SCOMMETTI</button></td>
                     </tr>
                 `;
             });
+            
+            // Popola lista delle scommesse dell'utente
+            const lista = document.getElementById('lista-scommesse');
+            lista.innerHTML = "";
+            const mieGiocate = race.bets.filter(b => b.user === myUserCode);
+            if(mieGiocate.length === 0) {
+                lista.innerHTML = "<li>Nessuna scommessa effettuata.</li>";
+            } else {
+                mieGiocate.forEach(b => {
+                    lista.innerHTML += `<li style="color:#00ff00;">Hai puntato ${b.amount}€ sul Cavallo N°${b.horse_id} (Quota ${b.quota})</li>`;
+                });
+            }
+            
+            // Aggiorna stato generale
+            if(race.status === "waiting") {
+                document.getElementById('timer-display').innerText = "IN ATTESA DI GIOCATORI";
+            } else if (race.status === "racing") {
+                document.getElementById('timer-display').innerText = "🐎 GARA IN CORSO! 🐎";
+            }
+            
+            // Se la gara è ripartita (nuovi cavalli generati), svuota la lista visiva per crearli nuovi
+            if(race.status === "waiting" && race.bets.length === 0) {
+                cavalliElements = {};
+            }
         });
 
+        // FUNZIONE SCOMMESSA
         function punta(horseId) {
             const amount = document.getElementById(`amt-${horseId}`).value;
-            socket.emit('place_bet', {
-                user: myUserCode,
-                amount: parseInt(amount),
-                horse_id: horseId,
-                type: 'vincente'
-            });
+            if(amount > 0) {
+                socket.emit('place_bet', {
+                    user: myUserCode,
+                    amount: parseInt(amount),
+                    horse_id: horseId,
+                    type: 'vincente'
+                });
+            } else {
+                alert("Inserisci un importo valido!");
+            }
         }
 
+        // TIMER
         socket.on('timer_update', (t) => {
-            document.getElementById('timer-display').innerText = "PARTENZA TRA: " + t + "s";
+            document.getElementById('timer-display').innerText = "CHIUSURA SCOMMESSE IN: " + t + "s";
         });
         
-        // ... (qui andrà la logica dei pallini che abbiamo già visto)
+        // MOVIMENTO PALLINI
+        socket.on('race_update', (posizioni) => {
+            Object.keys(posizioni).forEach(id => {
+                const ang = posizioni[id]; 
+                const x = 400 + 350 * Math.cos(ang);
+                const y = 175 + 130 * Math.sin(ang);
+                if(cavalliElements[id]) {
+                    cavalliElements[id].style.left = x + 'px';
+                    cavalliElements[id].style.top = y + 'px';
+                }
+            });
+        });
     </script>
 </body>
 </html>
