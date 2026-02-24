@@ -168,7 +168,7 @@
             event.target.classList.add('active'); 
         }
 
-        // --- MOTORE YOUTUBE CON LOOP CORRETTO ---
+        // --- MOTORE YOUTUBE ---
         let ytPlayer; 
         let ytReady = false; 
         let ytFadeIn, ytFadeOut, ytLoopMonitor;
@@ -183,8 +183,6 @@
         
         function playYT(url, start, end, fade=false) { 
             if(!ytReady || !audioAttivo || !url) return; 
-            
-            // Pulisce tutti i processi precedenti per evitare conflitti
             clearInterval(ytFadeIn); clearInterval(ytFadeOut); clearInterval(ytLoopMonitor); 
             
             ytPlayer.loadVideoById({'videoId': url, 'startSeconds': start}); 
@@ -203,7 +201,7 @@
                 ytPlayer.playVideo(); 
             } 
             
-            // Loop personalizzato
+            // Loop personalizzato YouTube
             if(end > 0) { 
                 ytLoopMonitor = setInterval(() => { 
                     if(ytPlayer.getCurrentTime && ytPlayer.getCurrentTime() >= end) {
@@ -224,7 +222,7 @@
             let v = ytPlayer.getVolume(); 
             ytFadeOut = setInterval(() => { 
                 v -= 5; 
-                if(v > 0) { ytPlayer.setVolume(v); } 
+                if(v > 0) ytPlayer.setVolume(v); 
                 else { clearInterval(ytFadeOut); ytPlayer.pauseVideo(); } 
             }, 150);
         }
@@ -234,13 +232,12 @@
             const msg = new SpeechSynthesisUtterance(`Ha vinto il cavallo numero ${numero}, ${nome}!`);
             msg.lang = 'it-IT'; msg.rate = 1.0;
             msg.onend = function() {
-                // Finito l'annuncio, parte la musica di trionfo
                 if(setts.yt_win_enable) playYT(setts.yt_win_url, setts.yt_win_start, setts.yt_win_end, true);
             };
             window.speechSynthesis.speak(msg);
         }
 
-        // Suoni Sintetici Infallibili
+        // --- SUONI LOCALI E VOCE ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const galoppo = new Audio('https://actions.google.com/sounds/v1/foley/horse_gallop_dirt.ogg');
         galoppo.loop = true;
@@ -267,7 +264,6 @@
                 if(audioCtx.state === 'suspended') audioCtx.resume();
                 playTone(400, 0.2);
                 
-                // Trucco sblocco YouTube immediato (Policy dei Browser)
                 if(ytReady) {
                     ytPlayer.setVolume(0); ytPlayer.playVideo();
                     setTimeout(() => {
@@ -288,7 +284,7 @@
             } 
         }
 
-        // --- GESTIONE DATI SERVER E SCOMMESSE ---
+        // --- COMUNICAZIONE SOCKET ---
         function eseguiLogin() { 
             const u = document.getElementById('user-code').value.trim(); 
             const p = document.getElementById('user-pass').value.trim(); 
@@ -316,7 +312,7 @@
             }
             document.getElementById('utenti-online').innerText = s.online_users.length > 0 ? s.online_users.join(", ") : "Nessuno";
             
-            // Mostra Nascondi Banner
+            // LOGICA BANNER: si accende se la corsa è in corso o finita
             if(r.status === "racing" || r.status === "finished") { 
                 document.getElementById('betting-forms-container').style.display = 'none'; 
                 document.getElementById('scommesse-chiuse').style.display = 'block'; 
@@ -325,27 +321,30 @@
                 document.getElementById('scommesse-chiuse').style.display = 'none'; 
             }
 
-            // Mostra limiti per scheda
             document.getElementById('lim-singola').innerText = setts.max_bet_singola > 0 ? `Max: ${setts.max_bet_singola.toFixed(2)}€` : "Nessun Limite";
             document.getElementById('lim-acc').innerText = setts.max_bet_accoppiata > 0 ? `Max: ${setts.max_bet_accoppiata.toFixed(2)}€` : "Nessun Limite";
             document.getElementById('lim-trio').innerText = setts.max_bet_trio > 0 ? `Max: ${setts.max_bet_trio.toFixed(2)}€` : "Nessun Limite";
 
-            // Aggiorna mie giocate in corso
             const mie = r.bets.filter(b => b.user === myUser); 
             const ul = document.getElementById('lista-mie-scommesse'); 
             ul.innerHTML = mie.length ? "" : "<li>Nessuna giocata in questa gara.</li>"; 
             mie.forEach(b => ul.innerHTML += `<li>${b.amount.toFixed(2)}€ su <b>${b.dettaglio}</b> (Quota: ${b.quota})</li>`);
             
-            // Aggiorna storico
-            if(s.history.length) { 
-                const ult = s.history[s.history.length-1]; 
+            if(s.history.length > 0) {
+                const ult = s.history[s.history.length - 1];
                 document.getElementById('storico-podio').innerHTML = `<span style="color:gold;">1° ${ult.primo}</span><br><span style="color:silver;">2° ${ult.secondo}</span><br><span style="color:#cd7f32;">3° ${ult.terzo}</span>`; 
                 const ulV = document.getElementById('storico-vincitori'); 
                 ulV.innerHTML = ult.vincitori.length ? "" : "<li>Nessun vincitore.</li>"; 
-                ult.vincitori.forEach(v => ulV.innerHTML += `<li><b>${v.user}</b> vince ${v.vincita.toFixed(2)}€</li>`); 
+                ult.vincitori.forEach(v => ulV.innerHTML += `<li><b>${v.user}</b> vince ${parseFloat(v.vincita).toFixed(2)}€</li>`); 
             }
             
-            // Popola tabelle quote e tendine (Senza Piazzato!)
+            // Pulizia preventiva dei pallini se la gara è stata resettata
+            const pistaWrapper = document.getElementById('pista-wrapper');
+            if(r.status === "waiting" && r.bets.length === 0) { 
+                document.querySelectorAll('.cavallo').forEach(e => e.remove()); 
+                cavalliElements = {}; 
+            }
+
             const tbody = document.getElementById('horse-table-body'); 
             tbody.innerHTML = ""; 
             let opts = ""; 
@@ -353,6 +352,7 @@
             r.horses.forEach((h, index) => {
                 opts += `<option value="${h.id}">N°${h.id} - ${h.nome}</option>`;
                 
+                // Generazione Riga Scommessa (Piazzato eliminato)
                 tbody.innerHTML += `
                 <tr>
                     <td style="text-align:left;"><div style="background:${h.colore};width:20px;height:20px;border-radius:50%;display:inline-block;vertical-align:middle;"></div> <b>N°${h.id}</b> - ${h.nome}</td>
@@ -367,13 +367,13 @@
                     <td><button class="btn-bet" onclick="puntaSingola(${h.id})">PUNTA</button></td>
                 </tr>`;
                 
-                // Creazione Elementi Grafici Pista
-                if(!cavalliElements[h.id] && r.status === "waiting") { 
+                // CREAZIONE PALLINI (IL FIX): Li crea SEMPRE se non esistono
+                if(!cavalliElements[h.id]) { 
                     const d = document.createElement('div'); 
                     d.className = 'cavallo'; 
                     d.style.backgroundColor = h.colore; 
                     d.innerText = h.id; 
-                    document.getElementById('pista-wrapper').appendChild(d); 
+                    pistaWrapper.appendChild(d); 
                     cavalliElements[h.id] = d; 
                     
                     const cx = 450, cy = 225, lx = 435 - (index * 6), ly = 210 - (index * 6); 
@@ -382,30 +382,23 @@
                 }
             });
 
-            if(r.status === "waiting" && r.bets.length === 0) { 
-                document.querySelectorAll('.cavallo').forEach(e=>e.remove()); 
-                cavalliElements = {}; 
-            }
-
             ['acc-h1','acc-h2','trio-h1','trio-h2','trio-h3'].forEach(id => { 
                 if(document.getElementById(id).innerHTML === "") document.getElementById(id).innerHTML = opts; 
             });
             
-            // Forza ricalcolo vincite potenziali
+            // Forza ricalcolo all'apertura
             r.horses.forEach(h => calcSingola(h.id)); 
-            calcAccoppiata(); 
-            calcTrio();
+            calcAccoppiata(); calcTrio();
             
             if(r.status === "waiting") {
                 document.getElementById('timer-display').innerText = setts.auto_timer ? "IN ATTESA DI SCOMMESSE" : "ATTESA PARTENZA (Manuale)";
-                // Ripristina la musica d'attesa se la gara era finita
                 if(audioAttivo && setts.yt_wait_enable && (!ytPlayer || ytPlayer.getPlayerState() !== 1)) {
                     playYT(setts.yt_wait_url, setts.yt_wait_start, setts.yt_wait_end, true); 
                 }
             }
         });
 
-        // --- CALCOLO VINCITE POTENZIALI ---
+        // --- CALCOLI SCOMMESSE ---
         function getH(id) { return currentHorses.find(h => h.id == id); }
         
         function calcSingola(id) { 
@@ -442,7 +435,7 @@
         }
 
         function preCheck(amt) { 
-            if(amt > myBalance) { alert("❌ Saldo insufficiente! Ricarica il tuo conto in cassa."); return false; } 
+            if(amt > myBalance) { alert("❌ Saldo insufficiente! Ricarica in ricevitoria."); return false; } 
             return true; 
         }
 
@@ -470,7 +463,7 @@
             socket.emit('place_bet', {user:myUser, amount:a, type:"Trio", horse_id:id1, quota:q, dettaglio:`Trio ${ord?'Ordine':'Giro'} (N°${id1}-N°${id2}-N°${id3})`, h1:id1, h2:id2, h3:id3, ordine:ord}); 
         }
 
-        // --- RICEZIONE EVENTI CORSA ---
+        // --- ANIMAZIONE DELLA CORSA ---
         socket.on('timer_update', (t) => { 
             document.getElementById('timer-display').innerText = "CHIUSURA IN: " + t + "s"; 
             if(t <= 5 && t > 0) playTone(600, 0.1, 'square');
@@ -478,22 +471,18 @@
         
         socket.on('race_start', () => { 
             document.getElementById('timer-display').innerText = "🐎 PARTITI! 🐎"; 
-            
-            // LA REGIA: Stoppa subito la musica d'attesa e spara la musica della gara!
             stopYT(); 
             if(setts.yt_race_enable) playYT(setts.yt_race_url, setts.yt_race_start, setts.yt_race_end, false); 
-            
             if(audioAttivo) { galoppo.volume = 0.5; galoppo.play(); }
         });
         
         socket.on('race_update', (pos) => { 
-            // Cerca dinamicamente l'indice corretto basato sull'ordine in currentHorses (previene pallini fuori pista)
             Object.keys(pos).forEach(id => { 
                 let index = 0;
+                // Calcola corsia esatta basata sull'array currentHorses
                 for(let i=0; i<currentHorses.length; i++) {
                     if(currentHorses[i].id == id) { index = i; break; }
                 }
-                
                 const cx = 450, cy = 225, lx = 435 - (index * 6), ly = 210 - (index * 6); 
                 const x = cx + lx * Math.cos(pos[id] + Math.PI/2);
                 const y = cy + ly * Math.sin(pos[id] + Math.PI/2); 
@@ -507,8 +496,7 @@
         
         socket.on('race_finished', (res) => { 
             document.getElementById('timer-display').innerText = "🏁 GARA CONCLUSA! 🏁"; 
-            
-            fadeOutYT(); // Sfuma la musica della gara
+            fadeOutYT(); 
             if(audioAttivo) { galoppo.pause(); galoppo.currentTime = 0; }
             document.getElementById('audio-folla').play(); 
             setTimeout(()=>document.getElementById('audio-folla').pause(), 4000);
