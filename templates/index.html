@@ -4,48 +4,93 @@
     <title>🏇 Horse Racing Live</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        body { background: #1a472a; color: white; font-family: sans-serif; text-align: center; }
-        #pista { width: 800px; height: 350px; margin: 20px auto; position: relative; background: #2d5a3c; border: 10px solid #5d4037; border-radius: 200px; overflow: hidden; }
-        .cavallo { width: 22px; height: 22px; border-radius: 50%; position: absolute; border: 2px solid #fff; font-size: 11px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; }
-        #game-interface { width: 90%; max-width: 800px; background: #222; padding: 20px; border-radius: 15px; border: 2px solid gold; margin: auto; }
-        input { padding: 8px; margin: 5px; }
-        table { width: 100%; margin-top: 15px; border-collapse: collapse; }
-        th, td { padding: 8px; border-bottom: 1px solid #444; }
-        .btn-bet { background: gold; border: none; padding: 5px 10px; cursor: pointer; font-weight: bold; }
+        body { background: #1a472a; color: white; font-family: sans-serif; text-align: center; margin: 0; padding-bottom: 50px;}
+        
+        /* Pista in Terra Battuta */
+        #pista-container { width: 800px; height: 400px; background: #8B4513; border-radius: 200px; position: relative; display: flex; align-items: center; justify-content: center; border: 5px solid #fff; margin: 20px auto; box-shadow: inset 0 0 30px #000; overflow: hidden;}
+        #prato-interno { width: 600px; height: 200px; background: #2d5a3c; border-radius: 100px; border: 5px solid #fff; box-shadow: 0 0 20px #000;}
+        .cavallo { width: 20px; height: 20px; border-radius: 50%; position: absolute; border: 2px solid #fff; font-size: 11px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 10; transition: all 0.1s linear;}
+        
+        /* Interfacce */
+        #game-interface { width: 90%; max-width: 900px; background: #222; padding: 20px; border-radius: 15px; border: 2px solid gold; margin: auto; }
+        .login-box { padding: 30px; border: 1px dashed #555; background: #111; border-radius: 10px;}
+        .login-box input { padding: 12px; font-size: 18px; margin: 5px; width: 250px; text-align: center;}
+        table { width: 100%; margin-top: 15px; border-collapse: collapse; background: #333;}
+        th, td { padding: 10px; border-bottom: 1px solid #444; }
+        .btn-bet { background: gold; border: none; padding: 5px 15px; cursor: pointer; font-weight: bold; border-radius: 3px;}
+        #timer-display { font-size: 2.5em; color: #ffcc00; margin: 10px; font-weight: bold; text-transform: uppercase;}
+        
+        /* Info Extra */
+        .info-panel { display: flex; justify-content: space-around; background: #111; padding: 15px; border-radius: 10px; margin-top: 20px;}
+        .podio { text-align: left; color: #ddd; }
+        .podio span { font-weight: bold; color: gold;}
+        .btn-audio { background: #3498db; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 10px;}
     </style>
 </head>
 <body>
-    <div id="pista"></div>
-    <h2 id="timer-display">IN ATTESA DI GIOCATORI</h2>
+
+    <button class="btn-audio" onclick="attivaAudio()" id="btn-audio">🔊 Clicca per Attivare Audio</button>
+
+    <div id="pista-container">
+        <div id="prato-interno"></div>
+    </div>
+    <div id="timer-display">IN ATTESA DI GIOCATORI</div>
 
     <div id="game-interface">
-        <div id="login-section">
+        
+        <div id="login-section" class="login-box">
             <h3>🔑 Login Giocatore</h3>
-            <input type="text" id="user-code" placeholder="Nome Utente"><br>
-            <input type="password" id="user-pass" placeholder="Password"><br>
-            <button onclick="eseguiLogin()" style="padding:10px 20px; background:gold; font-weight:bold;">ACCEDI</button>
+            <input type="text" id="user-code" placeholder="NOME UTENTE"><br>
+            <input type="password" id="user-pass" placeholder="PASSWORD"><br>
+            <button onclick="eseguiLogin()" style="padding:12px 30px; background:gold; font-weight:bold; font-size:18px; margin-top:15px; cursor:pointer;">ACCEDI ALLA RICEVITORIA</button>
         </div>
 
         <div id="betting-section" style="display:none;">
-            <div style="display:flex; justify-content:space-between;">
-                <span>Utente: <b id="display-username" style="color:gold;"></b></span>
-                <span>Saldo: <b id="display-balance" style="color:#0ff00;">0</b>€</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #555; padding-bottom:10px;">
+                <span style="font-size: 20px;">👤 Utente: <b id="display-username" style="color:gold;"></b></span>
+                <span style="font-size: 20px;">💶 Saldo: <b id="display-balance" style="color:#00ff00;">0</b>€</span>
             </div>
+            
             <table>
-                <thead><tr><th>N°</th><th>Cavallo</th><th>Quota</th><th>Punta</th><th>Azione</th></tr></thead>
+                <thead><tr><th>N°</th><th>Cavallo</th><th>Quota</th><th>Puntata (€)</th><th>Azione</th></tr></thead>
                 <tbody id="horse-table-body"></tbody>
             </table>
+            
+            <div class="info-panel">
+                <div class="podio">
+                    <h4>👥 Giocatori Online:</h4>
+                    <p id="online-users" style="color:#3498db;">Nessuno</p>
+                </div>
+                <div class="podio" style="border-left: 1px solid #555; padding-left: 20px;">
+                    <h4>🏆 Risultati Ultima Gara:</h4>
+                    <p id="storico-podio">In attesa della prima gara...</p>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
         const socket = io();
         let myUser = "";
-        let cavalli = {};
+        let cavalliElements = {};
+        
+        // Audio
+        let audioAttivo = false;
+        const sparo = new Audio('https://www.soundjay.com/mechanical/gun-shot-01.mp3');
+        const folla = new Audio('https://www.soundjay.com/misc/sounds/crowd-cheer-01.mp3');
+        folla.loop = true;
+
+        function attivaAudio() {
+            audioAttivo = true;
+            document.getElementById('btn-audio').style.background = "#27ae60";
+            document.getElementById('btn-audio').innerText = "🔊 Audio Attivato";
+            sparo.volume = 0; sparo.play(); // Trick per sbloccare il browser
+        }
 
         function eseguiLogin() {
-            const user = document.getElementById('user-code').value;
-            const pass = document.getElementById('user-pass').value;
+            const user = document.getElementById('user-code').value.trim();
+            const pass = document.getElementById('user-pass').value.trim();
+            if(user === "" || pass === "") { alert("Inserisci Utente e Password!"); return; }
             socket.emit('tentativo_login', {user: user, password: pass});
         }
 
@@ -61,37 +106,97 @@
 
         socket.on('update_data', (s) => {
             const r = s.current_race;
+            
+            // Saldo
             if(myUser && s.users[myUser]) document.getElementById('display-balance').innerText = s.users[myUser].wallet;
             
+            // Giocatori online
+            document.getElementById('online-users').innerText = s.online_users.length > 0 ? s.online_users.join(" - ") : "Nessuno";
+
+            // Storico Gare
+            if(s.history.length > 0) {
+                const ultima = s.history[s.history.length - 1];
+                document.getElementById('storico-podio').innerHTML = `
+                    1° <span>${ultima.primo}</span><br>
+                    2° <span>${ultima.secondo}</span><br>
+                    3° <span>${ultima.terzo}</span><br>
+                    <small style="color:#e74c3c;">Ultimo: ${ultima.ultimo}</small>
+                `;
+            }
+
+            // Tabella Cavalli
             const tbody = document.getElementById('horse-table-body');
             tbody.innerHTML = "";
-            r.horses.forEach(h => {
+            const pista = document.getElementById('pista-container');
+            
+            // Svuota pista se in waiting e no bets (gara resettata)
+            if(r.status === "waiting" && r.bets.length === 0) {
+                document.querySelectorAll('.cavallo').forEach(e => e.remove());
+                cavalliElements = {};
+            }
+
+            r.horses.forEach((h, index) => {
+                const dis = r.status !== "waiting" && r.status !== "countdown" ? "disabled" : "";
                 tbody.innerHTML += `<tr>
-                    <td><div style="background:${h.colore};width:20px;height:20px;border-radius:50%;margin:auto;">${h.id}</div></td>
-                    <td>${h.nome}</td><td><b>${h.quota_v}</b></td>
-                    <td><input type="number" id="amt-${h.id}" style="width:50px" value="5"></td>
-                    <td><button class="btn-bet" onclick="punta(${h.id})">PUNTA</button></td>
+                    <td><div style="background:${h.colore};width:22px;height:22px;border-radius:50%;margin:auto;">${h.id}</div></td>
+                    <td>${h.nome}</td><td style="color:gold; font-size:18px;"><b>${h.quota_v}</b></td>
+                    <td><input type="number" id="amt-${h.id}" style="width:60px" value="5" ${dis}></td>
+                    <td><button class="btn-bet" onclick="punta(${h.id})" ${dis}>PUNTA</button></td>
                 </tr>`;
-                if(!cavalli[h.id]) {
+                
+                // Crea Pallini sulla griglia di partenza (sfalsati per non sovrapporsi!)
+                if(!cavalliElements[h.id] && r.status === "waiting") {
                     const d = document.createElement('div');
                     d.className = 'cavallo'; d.style.backgroundColor = h.colore; d.innerText = h.id;
-                    document.getElementById('pista').appendChild(d);
-                    cavalli[h.id] = d;
+                    pista.appendChild(d);
+                    cavalliElements[h.id] = d;
+                    
+                    // Corsie per non sovrapporsi (Raggio X e Y si stringono)
+                    const laneX = 380 - (index * 8);
+                    const laneY = 180 - (index * 8);
+                    const startX = 400 + laneX * Math.cos(0);
+                    const startY = 200 + laneY * Math.sin(0);
+                    d.style.left = (startX - 10) + 'px'; // -10 per centrare
+                    d.style.top = (startY - 10) + 'px';
                 }
             });
+
+            if(r.status === "waiting") document.getElementById('timer-display').innerText = "IN ATTESA DI GIOCATORI";
         });
 
         function punta(id) {
             const a = document.getElementById('amt-' + id).value;
-            socket.emit('place_bet', {user: myUser, amount: int(a), horse_id: id, type: 'vincente'});
+            if(a > 0) socket.emit('place_bet', {user: myUser, amount: parseInt(a), horse_id: id});
         }
 
+        socket.on('timer_update', (t) => {
+            document.getElementById('timer-display').innerText = "CHIUSURA IN: " + t + "s";
+        });
+
+        socket.on('race_start', () => {
+            document.getElementById('timer-display').innerText = "🐎 PARTITI! 🐎";
+            if(audioAttivo) { sparo.volume = 1; sparo.play(); folla.play(); }
+        });
+
         socket.on('race_update', (pos) => {
+            // Indice usato per calcolare le corsie al volo
+            let index = 0;
             Object.keys(pos).forEach(id => {
-                const x = 400 + 350 * Math.cos(pos[id]);
-                const y = 175 + 130 * Math.sin(pos[id]);
-                if(cavalli[id]) { cavalli[id].style.left = x+'px'; cavalliElements[id].style.top = y+'px'; }
+                const laneX = 380 - (index * 8);
+                const laneY = 180 - (index * 8);
+                const x = 400 + laneX * Math.cos(pos[id]);
+                const y = 200 + laneY * Math.sin(pos[id]);
+                if(cavalliElements[id]) { 
+                    cavalliElements[id].style.left = (x - 10) +'px'; 
+                    cavalliElements[id].style.top = (y - 10) +'px'; 
+                }
+                index++;
             });
+        });
+
+        socket.on('race_finished', () => {
+            document.getElementById('timer-display').innerText = "🏁 GARA CONCLUSA! 🏁";
+            if(audioAttivo) { folla.pause(); folla.currentTime = 0; }
         });
     </script>
 </body>
