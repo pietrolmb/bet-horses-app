@@ -10,6 +10,8 @@
         .stat-box { flex: 1; padding: 20px; border-radius: 8px; text-align: center; color: white; font-size: 18px; font-weight: bold;}
         input { padding: 10px; font-size: 16px; border: 1px solid #bdc3c7; border-radius: 4px; margin-right: 10px;}
         button { padding: 10px 20px; font-size: 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;}
+        .btn-forza { background: #e74c3c; width: 100%; font-size: 20px; padding: 15px; margin-top: 10px; border-radius: 8px;}
+        .btn-forza:hover { background: #c0392b; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { padding: 10px; border: 1px solid #ddd; text-align: center; }
         th { background: #34495e; color: white; }
@@ -24,27 +26,37 @@
         <div class="stat-box" style="background:#8e44ad;">Utile<br><span id="util">0</span> €</div>
     </div>
 
-    <div class="card" style="border-left: 5px solid #3498db;">
-        <h3>➕ Crea/Ricarica Utente e Password</h3>
-        <input type="text" id="nuovo-user" placeholder="Nome Utente">
-        <input type="text" id="nuova-pass" placeholder="Password Giocatore">
-        <input type="number" id="importo" placeholder="Importo (€)" style="width: 120px;">
-        <button onclick="gestioneSoldi()">Conferma</button>
-        <p style="color: #7f8c8d; font-size: 14px;">Giocatori attualmente connessi: <b id="online-users">Nessuno</b></p>
-    </div>
-
     <div style="display: flex; gap: 20px;">
+        <div style="flex: 1;">
+            <div class="card" style="border-left: 5px solid #3498db;">
+                <h3>➕ Ricarica / Crea Utente</h3>
+                <input type="text" id="nuovo-user" placeholder="Utente" style="width: 30%;">
+                <input type="text" id="nuova-pass" placeholder="Password" style="width: 30%;">
+                <input type="number" id="importo" placeholder="Euro" style="width: 20%;">
+                <button onclick="gestioneSoldi()" style="margin-top: 10px; width: 100%;">Conferma Esecuzione</button>
+            </div>
+            
+            <div class="card" style="border-left: 5px solid #e74c3c;">
+                <h3>🚀 Controllo Gara</h3>
+                <p>Usa questo tasto per far partire la gara istantaneamente, ignorando il timer dei 60 secondi.</p>
+                <button class="btn-forza" onclick="forzaPartenza()">FORZA PARTENZA ORA</button>
+            </div>
+
+            <div class="card" style="border-left: 5px solid #9b59b6;">
+                <h3>👥 Saldi Utenti Registrati</h3>
+                <table id="tabella-utenti">
+                    <thead><tr><th>Giocatore</th><th>Saldo Attuale</th><th>Stato</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="card" style="flex: 2; border-left: 5px solid #f39c12;">
             <h3>📊 Scommesse Corsa Attuale</h3>
             <table id="tabella-scommesse">
-                <thead><tr><th>Giocatore</th><th>Cavallo</th><th>Importo</th><th>Quota</th></tr></thead>
+                <thead><tr><th>Giocatore</th><th>Cavallo</th><th>Tipo</th><th>Importo</th><th>Quota</th></tr></thead>
                 <tbody></tbody>
             </table>
-        </div>
-
-        <div class="card" style="flex: 1; border-left: 5px solid #2ecc71;">
-            <h3>🏆 Storico Podi</h3>
-            <ul id="lista-podi" style="list-style-type: none; padding: 0;"></ul>
         </div>
     </div>
 
@@ -63,26 +75,31 @@
             }
         }
 
+        function forzaPartenza() {
+            if(confirm("Sei sicuro di voler far partire la gara ADESSO?")) {
+                socket.emit('admin_force_start');
+            }
+        }
+
         socket.on('update_data', (s) => {
             document.getElementById('inc').innerText = s.admin_stats.totale_incassato;
             document.getElementById('pag').innerText = s.admin_stats.totale_pagato;
             document.getElementById('util').innerText = s.admin_stats.bilancio;
             
-            document.getElementById('online-users').innerText = s.online_users.length > 0 ? s.online_users.join(", ") : "Nessuno";
-
-            const tbody = document.querySelector('#tabella-scommesse tbody');
-            tbody.innerHTML = s.current_race.bets.length === 0 ? '<tr><td colspan="4">Nessuna scommessa.</td></tr>' : "";
+            // Aggiorna tabella scommesse
+            const tbodyScommesse = document.querySelector('#tabella-scommesse tbody');
+            tbodyScommesse.innerHTML = s.current_race.bets.length === 0 ? '<tr><td colspan="5">Nessuna scommessa in questa gara.</td></tr>' : "";
             s.current_race.bets.forEach(b => {
-                tbody.innerHTML += `<tr><td><b>${b.user}</b></td><td>N° ${b.horse_id}</td><td style="color:green;">${b.amount} €</td><td>${b.quota}</td></tr>`;
+                tbodyScommesse.innerHTML += `<tr><td><b>${b.user}</b></td><td>N° ${b.horse_id}</td><td>${b.type}</td><td style="color:green;">${b.amount} €</td><td>${b.quota}</td></tr>`;
             });
 
-            const ul = document.getElementById('lista-podi');
-            ul.innerHTML = s.history.length === 0 ? "Nessuna gara terminata." : "";
-            s.history.forEach(h => {
-                ul.innerHTML += `<li style="margin-bottom:10px; border-bottom:1px solid #ccc; padding-bottom:5px;">
-                    <b>Gara ${h.gara_num}</b><br>🥇 ${h.primo}<br>🥈 ${h.secondo}<br>🥉 ${h.terzo}<br>
-                    <small style="color:red;">Ultimo: ${h.ultimo}</small></li>`;
-            });
+            // Aggiorna tabella conti utenti
+            const tbodyUtenti = document.querySelector('#tabella-utenti tbody');
+            tbodyUtenti.innerHTML = Object.keys(s.users).length === 0 ? '<tr><td colspan="3">Nessun utente creato.</td></tr>' : "";
+            for (const [nomeUtente, datiUtente] of Object.entries(s.users)) {
+                const isOnline = s.online_users.includes(nomeUtente) ? "🟢 Online" : "⚪ Offline";
+                tbodyUtenti.innerHTML += `<tr><td><b>${nomeUtente}</b></td><td>${datiUtente.wallet} €</td><td>${isOnline}</td></tr>`;
+            }
         });
     </script>
 </body>
