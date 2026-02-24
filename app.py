@@ -16,13 +16,12 @@ data = {
     "history": [],
     "settings": {
         "auto_timer": True, 
-        "max_bet_singola": 0.0,  # 0 = Nessun limite
-        "max_bet_accoppiata": 0.0,
-        "max_bet_trio": 0.0,
+        "max_bet_singola": 0.0, "max_bet_accoppiata": 0.0, "max_bet_trio": 0.0,
         "timer_duration": 60,
-        "yt_wait_url": "L_LUpnjgPso", "yt_wait_start": 0,    
-        "yt_race_url": "XqEQJe1kRHA", "yt_race_start": 23,   
-        "yt_win_url": "E3m-XH1Kij0",  "yt_win_start": 54     
+        "min_horses": 6, "max_horses": 9,
+        "yt_wait_enable": True, "yt_wait_url": "L_LUpnjgPso", "yt_wait_start": 0, "yt_wait_end": 0,    
+        "yt_race_enable": True, "yt_race_url": "XqEQJe1kRHA", "yt_race_start": 23, "yt_race_end": 0,   
+        "yt_win_enable": True, "yt_win_url": "E3m-XH1Kij0",  "yt_win_start": 54, "yt_win_end": 65     
     }
 }
 
@@ -30,13 +29,16 @@ NOMI_A = ["Western", "Più Forte", "Lord", "Stud", "National", "Golden", "Pocket
 NOMI_B = ["Smoke", "Non Si Può", "Lester", "Muffin", "Pride", "Thunder", "Rocket", "Delight", "Man", "King"]
 
 def genera_nuova_corsa():
-    num = random.randint(6, 9) # MENO CAVALLI = QUOTE PIU' BASSE
+    min_h = data["settings"]["min_horses"]
+    max_h = data["settings"]["max_horses"]
+    if min_h > max_h: min_h, max_h = max_h, min_h # Previene errori se l'admin inverte i numeri
+    num = random.randint(min_h, max_h) 
+    
     horses = []
     nomi = random.sample([f"{a} {b}" for a in NOMI_A for b in NOMI_B], num)
     
-    # Crea un super favorito (peso molto alto) e gli altri normali
     raw_weights = [random.uniform(70, 150)] + [random.uniform(10, 60) for _ in range(num - 1)]
-    random.shuffle(raw_weights) # Mischia l'ordine così il favorito non è sempre il N°1
+    random.shuffle(raw_weights) 
     
     tot_weight = sum(raw_weights)
     p_vittoria = [w / tot_weight for w in raw_weights]
@@ -45,7 +47,7 @@ def genera_nuova_corsa():
     tot_inv = sum(inv_weights)
     p_ultimo = [iw / tot_inv for iw in inv_weights]
     
-    house_edge = 1.25 # Lavagna al 25% (Abbassa le quote per proteggere il banco)
+    house_edge = 1.25 
 
     for i in range(num):
         q_v = max(1.05, round(1 / (p_vittoria[i] * house_edge), 2))
@@ -125,7 +127,6 @@ def handle_bet(bet_data):
         emit('login_error', "Saldo insufficiente!")
         return
 
-    # Trova il limite corretto per la tipologia di scommessa
     limit = 0.0
     if tipo in ["Vincente", "Piazzato", "Ultimo"]: limit = data["settings"]["max_bet_singola"]
     elif tipo == "Accoppiata": limit = data["settings"]["max_bet_accoppiata"]
@@ -144,7 +145,8 @@ def handle_bet(bet_data):
         
         race["bets"].append({
             "user": user, "type": tipo, "dettaglio": dettaglio, "amount": importo, "quota": quota,
-            "h1": bet_data.get('h1'), "h2": bet_data.get('h2'), "h3": bet_data.get('h3'), "ordine": bet_data.get('ordine', True)
+            "h1": bet_data.get('h1'), "h2": bet_data.get('h2'), "h3": bet_data.get('h3'), "ordine": bet_data.get('ordine', True),
+            "esito": "In Attesa" # Nuovo campo per l'Admin
         })
         
         if data["settings"]["auto_timer"] and race["status"] == "waiting":
@@ -213,12 +215,15 @@ def start_race():
             elif not bet["ordine"] and (bet["h1"] in [id_1, id_2, id_3] and bet["h2"] in [id_1, id_2, id_3] and bet["h3"] in [id_1, id_2, id_3]): vinto = True
         
         if vinto:
+            bet["esito"] = "Vinta" # Aggiorna esito per Storico Admin
             vincita = round(bet["amount"] * bet["quota"], 2)
             data["users"][bet["user"]]["wallet"] = round(data["users"][bet["user"]]["wallet"] + vincita, 2)
             data["users"][bet["user"]]["tot_vin"] += vincita
             data["users"][bet["user"]]["tot_per"] -= bet["amount"] 
             totale_pagato_gara += vincita
             vincitori_gara.append({"user": bet["user"], "vincita": vincita, "dettaglio": bet["dettaglio"]})
+        else:
+            bet["esito"] = "Persa" # Aggiorna esito per Storico Admin
             
     data["admin_stats"]["totale_pagato"] = round(data["admin_stats"]["totale_pagato"] + totale_pagato_gara, 2)
     data["admin_stats"]["bilancio"] = round(data["admin_stats"]["totale_incassato"] - data["admin_stats"]["totale_pagato"], 2)
