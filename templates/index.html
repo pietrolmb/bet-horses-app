@@ -15,7 +15,6 @@
         .login-box { padding: 30px; border: 1px dashed #555; background: #111; border-radius: 10px;}
         .login-box input { padding: 12px; font-size: 18px; margin: 5px; width: 250px; text-align: center;}
         
-        /* TABS SCOMMESSE */
         .tabs { display: flex; justify-content: center; margin-bottom: 15px; border-bottom: 2px solid #444; }
         .tab-btn { background: #333; color: white; border: none; padding: 10px 20px; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 5px 5px 0 0; margin: 0 5px; }
         .tab-btn.active { background: gold; color: black; }
@@ -26,15 +25,17 @@
         th, td { padding: 10px; border-bottom: 1px solid #444; }
         .btn-bet { background: gold; border: none; padding: 8px 15px; cursor: pointer; font-weight: bold; border-radius: 3px;}
         .pot-win { color: #2ecc71; font-weight: bold; font-size: 14px; display: block; margin-top: 5px;}
+        .limite-txt { color: #e74c3c; font-size: 14px; margin-bottom: 10px; font-weight: bold;}
         
         #timer-display { font-size: 2.5em; color: #ffcc00; margin: 10px; font-weight: bold;}
         .info-panel { display: flex; justify-content: space-around; background: #111; padding: 15px; border-radius: 10px; margin-top: 20px;}
         .podio { text-align: left; color: #ddd; flex: 1; padding: 10px;}
         .btn-audio { background: #e74c3c; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 10px;}
         .mie-scommesse { background: #2c3e50; padding: 10px; border-radius: 8px; margin-top: 15px; text-align: left; border: 1px solid #3498db; }
-        .limite-txt { color: #e74c3c; font-size: 14px; margin-bottom: 10px; font-weight: bold; display: none;}
         
         #win-banner { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(46, 204, 113, 0.95); padding: 40px; border-radius: 20px; border: 5px solid gold; z-index: 9999; box-shadow: 0 0 50px gold; text-align: center; }
+        #scommesse-chiuse { display: none; text-align: center; padding: 40px; background: #111; border: 2px dashed #e74c3c; border-radius: 10px; }
+        
         #yt-player { position: absolute; top: -9999px; left: -9999px; width: 1px; height: 1px; opacity: 0; }
     </style>
 </head>
@@ -44,7 +45,9 @@
         <h2 id="win-amount" style="font-size:2.5em; margin:10px 0; color: gold; text-shadow: 1px 1px #000;">Hai vinto 0.00€</h2>
     </div>
 
+    <audio id="audio-folla" src="https://www.myinstants.com/media/sounds/crowd-cheering.mp3" preload="auto" loop crossorigin="anonymous"></audio>
     <div id="yt-player"></div>
+
     <button class="btn-audio" onclick="toggleAudio()" id="btn-audio">🔇 Clicca per Attivare Regia Audio</button>
     
     <div id="pista-wrapper">
@@ -72,51 +75,57 @@
                 <ul id="lista-mie-scommesse">Nessuna scommessa effettuata.</ul>
             </div>
             
-            <div id="limite-puntata" class="limite-txt">Puntata Massima su singola giocata: <span id="max-bet-val">0</span>€</div>
-            
-            <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('tab-singola')">Singola / Piazzato</button>
-                <button class="tab-btn" onclick="switchTab('tab-accoppiata')">Accoppiata (2 Cavalli)</button>
-                <button class="tab-btn" onclick="switchTab('tab-trio')">Trio (3 Cavalli)</button>
+            <div id="scommesse-chiuse">
+                <h2 style="color:#e74c3c; font-size: 2.5em; margin:0;">🚫 SCOMMESSE CHIUSE 🚫</h2>
+                <p style="color:#aaa; font-size: 1.2em;">La gara è iniziata. In bocca al lupo!</p>
             </div>
 
-            <div id="tab-singola" class="tab-content active">
-                <table>
-                    <thead><tr><th>Cavallo</th><th>Quota Vin/Piaz/Ult</th><th>Scommessa</th><th>Importo (€)</th><th>Azione</th></tr></thead>
-                    <tbody id="horse-table-body"></tbody>
-                </table>
-            </div>
-
-            <div id="tab-accoppiata" class="tab-content">
-                <div style="background:#222; padding:20px; border-radius:8px; border:1px solid #555;">
-                    <h3 style="margin-top:0; color:gold;">Scegli 2 Cavalli</h3>
-                    <select id="acc-h1" onchange="calcAccoppiata()" style="padding:10px; font-size:16px; margin:5px;"></select>
-                    <select id="acc-h2" onchange="calcAccoppiata()" style="padding:10px; font-size:16px; margin:5px;"></select><br>
-                    <select id="acc-tipo" onchange="calcAccoppiata()" style="padding:10px; font-size:16px; margin:10px 0;">
-                        <option value="ordine">In Ordine Esatto</option>
-                        <option value="giro">A Giro (Ordine Casuale)</option>
-                    </select><br>
-                    <b>Quota: <span id="acc-quota" style="color:gold; font-size:20px;">0.00</span></b><br>
-                    <input type="number" id="acc-amt" value="5" oninput="calcAccoppiata()" style="padding:10px; width:80px; margin-top:10px;"> €<br>
-                    <span class="pot-win" id="acc-pot">Potenziale Vincita: 0.00€</span><br>
-                    <button class="btn-bet" style="margin-top:10px; font-size:16px; padding:10px 30px;" onclick="puntaAccoppiata()" id="btn-acc">PUNTA ACCOPPIATA</button>
+            <div id="betting-forms-container">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('tab-singola')">Singola / Piazzato</button>
+                    <button class="tab-btn" onclick="switchTab('tab-accoppiata')">Accoppiata</button>
+                    <button class="tab-btn" onclick="switchTab('tab-trio')">Trio</button>
                 </div>
-            </div>
 
-            <div id="tab-trio" class="tab-content">
-                <div style="background:#222; padding:20px; border-radius:8px; border:1px solid #555;">
-                    <h3 style="margin-top:0; color:gold;">Scegli 3 Cavalli</h3>
-                    <select id="trio-h1" onchange="calcTrio()" style="padding:10px; margin:5px;"></select>
-                    <select id="trio-h2" onchange="calcTrio()" style="padding:10px; margin:5px;"></select>
-                    <select id="trio-h3" onchange="calcTrio()" style="padding:10px; margin:5px;"></select><br>
-                    <select id="trio-tipo" onchange="calcTrio()" style="padding:10px; font-size:16px; margin:10px 0;">
-                        <option value="ordine">In Ordine Esatto</option>
-                        <option value="giro">A Giro (Ordine Casuale)</option>
-                    </select><br>
-                    <b>Quota: <span id="trio-quota" style="color:gold; font-size:20px;">0.00</span></b><br>
-                    <input type="number" id="trio-amt" value="5" oninput="calcTrio()" style="padding:10px; width:80px; margin-top:10px;"> €<br>
-                    <span class="pot-win" id="trio-pot">Potenziale Vincita: 0.00€</span><br>
-                    <button class="btn-bet" style="margin-top:10px; font-size:16px; padding:10px 30px;" onclick="puntaTrio()" id="btn-trio">PUNTA TRIO</button>
+                <div id="tab-singola" class="tab-content active">
+                    <p class="limite-txt" id="lim-singola">Max puntata: 0.00€</p>
+                    <table>
+                        <thead><tr><th>Cavallo</th><th>Quota Vin/Piaz/Ult</th><th>Scommessa</th><th>Importo (€)</th><th>Azione</th></tr></thead>
+                        <tbody id="horse-table-body"></tbody>
+                    </table>
+                </div>
+
+                <div id="tab-accoppiata" class="tab-content">
+                    <p class="limite-txt" id="lim-acc">Max puntata: 0.00€</p>
+                    <div style="background:#222; padding:20px; border-radius:8px; border:1px solid #555;">
+                        <h3 style="margin-top:0; color:gold;">Scegli 2 Cavalli</h3>
+                        <select id="acc-h1" onchange="calcAccoppiata()" style="padding:10px; margin:5px;"></select>
+                        <select id="acc-h2" onchange="calcAccoppiata()" style="padding:10px; margin:5px;"></select><br>
+                        <select id="acc-tipo" onchange="calcAccoppiata()" style="padding:10px; margin:10px 0;">
+                            <option value="ordine">In Ordine Esatto</option><option value="giro">A Giro (Ordine Casuale)</option>
+                        </select><br>
+                        <b>Quota: <span id="acc-quota" style="color:gold; font-size:20px;">0.00</span></b><br>
+                        <input type="number" id="acc-amt" value="5" oninput="calcAccoppiata()" style="padding:10px; width:80px; margin-top:10px;"> €<br>
+                        <span class="pot-win" id="acc-pot">Potenziale Vincita: 0.00€</span><br>
+                        <button class="btn-bet" style="margin-top:10px; padding:10px 30px;" onclick="puntaAccoppiata()" id="btn-acc">PUNTA ACCOPPIATA</button>
+                    </div>
+                </div>
+
+                <div id="tab-trio" class="tab-content">
+                    <p class="limite-txt" id="lim-trio">Max puntata: 0.00€</p>
+                    <div style="background:#222; padding:20px; border-radius:8px; border:1px solid #555;">
+                        <h3 style="margin-top:0; color:gold;">Scegli 3 Cavalli</h3>
+                        <select id="trio-h1" onchange="calcTrio()" style="padding:10px; margin:5px;"></select>
+                        <select id="trio-h2" onchange="calcTrio()" style="padding:10px; margin:5px;"></select>
+                        <select id="trio-h3" onchange="calcTrio()" style="padding:10px; margin:5px;"></select><br>
+                        <select id="trio-tipo" onchange="calcTrio()" style="padding:10px; margin:10px 0;">
+                            <option value="ordine">In Ordine Esatto</option><option value="giro">A Giro (Ordine Casuale)</option>
+                        </select><br>
+                        <b>Quota: <span id="trio-quota" style="color:gold; font-size:20px;">0.00</span></b><br>
+                        <input type="number" id="trio-amt" value="5" oninput="calcTrio()" style="padding:10px; width:80px; margin-top:10px;"> €<br>
+                        <span class="pot-win" id="trio-pot">Potenziale Vincita: 0.00€</span><br>
+                        <button class="btn-bet" style="margin-top:10px; padding:10px 30px;" onclick="puntaTrio()" id="btn-trio">PUNTA TRIO</button>
+                    </div>
                 </div>
             </div>
             
@@ -150,88 +159,57 @@
             event.target.classList.add('active');
         }
 
-        // --- REGIA YOUTUBE ---
-        let ytPlayer;
-        let currentState = "none"; 
-        
+        let ytPlayer; let currentState = "none"; 
         function onYouTubeIframeAPIReady() {
-            ytPlayer = new YT.Player('yt-player', {
-                height: '1', width: '1', videoId: '',
-                playerVars: { 'autoplay': 0, 'controls': 0, 'showinfo': 0, 'rel': 0 },
-                events: { 'onStateChange': onPlayerStateChange }
-            });
+            ytPlayer = new YT.Player('yt-player', { height: '1', width: '1', videoId: '', playerVars: { 'autoplay': 0, 'controls': 0, 'showinfo': 0, 'rel': 0 }, events: { 'onStateChange': onPlayerStateChange }});
         }
+        function onPlayerStateChange(event) { if (event.data === YT.PlayerState.ENDED && currentState === "waiting") { ytPlayer.playVideo(); } }
         
-        function onPlayerStateChange(event) {
-            // Loop per musica attesa
-            if (event.data === YT.PlayerState.ENDED && currentState === "waiting") { ytPlayer.playVideo(); }
-        }
-
         function playYTMese(url, start, fade=false) {
             if(!ytPlayer || !audioAttivo || !url) return;
             ytPlayer.loadVideoById({'videoId': url, 'startSeconds': start});
-            if(fade) {
-                ytPlayer.setVolume(0); ytPlayer.playVideo();
-                let v = 0; let f = setInterval(()=>{ v+=5; if(v<=50) ytPlayer.setVolume(v); else clearInterval(f); }, 200);
-            } else {
-                ytPlayer.setVolume(40); ytPlayer.playVideo();
-            }
+            if(fade) { ytPlayer.setVolume(0); ytPlayer.playVideo(); let v = 0; let f = setInterval(()=>{ v+=5; if(v<=50) ytPlayer.setVolume(v); else clearInterval(f); }, 200); } 
+            else { ytPlayer.setVolume(40); ytPlayer.playVideo(); }
         }
-
         function stopYTFade() {
             if(!ytPlayer) return;
-            let v = ytPlayer.getVolume();
-            let f = setInterval(()=>{ v-=5; if(v>=0) ytPlayer.setVolume(v); else { clearInterval(f); ytPlayer.pauseVideo(); } }, 200);
+            let v = ytPlayer.getVolume(); let f = setInterval(()=>{ v-=5; if(v>=0) ytPlayer.setVolume(v); else { clearInterval(f); ytPlayer.pauseVideo(); } }, 200);
         }
 
         function annunciaVincitore(nome, numero) {
             if(!audioAttivo) return;
             const msg = new SpeechSynthesisUtterance(`Ha vinto il cavallo numero ${numero}, ${nome}!`);
             msg.lang = 'it-IT'; msg.rate = 1.0;
-            msg.onend = function() {
-                // Finito di parlare, parte la canzone di vittoria!
-                currentState = "winning";
-                playYTMese(setts.yt_win_url, setts.yt_win_start, true);
-            };
+            msg.onend = function() { currentState = "winning"; playYTMese(setts.yt_win_url, setts.yt_win_start, true); };
             window.speechSynthesis.speak(msg);
         }
 
         function toggleAudio() {
-            audioAttivo = !audioAttivo;
-            const btn = document.getElementById('btn-audio');
+            audioAttivo = !audioAttivo; const btn = document.getElementById('btn-audio');
             if(audioAttivo) {
                 btn.style.background = "#27ae60"; btn.innerText = "🔊 Regia Audio Attiva";
                 if(ytPlayer) { ytPlayer.setVolume(0); ytPlayer.playVideo(); setTimeout(()=>ytPlayer.pauseVideo(), 100); }
-                // Se siamo in attesa, fai partire la musica d'attesa
                 if(document.getElementById('timer-display').innerText.includes("ATTESA") || document.getElementById('timer-display').innerText.includes("CHIUSURA")) {
                     currentState = "waiting"; playYTMese(setts.yt_wait_url, setts.yt_wait_start);
                 }
-            } else {
-                btn.style.background = "#e74c3c"; btn.innerText = "🔇 Suoni Disattivati";
-                if(ytPlayer) ytPlayer.pauseVideo();
-            }
+            } else { btn.style.background = "#e74c3c"; btn.innerText = "🔇 Suoni Disattivati"; if(ytPlayer) ytPlayer.pauseVideo(); }
         }
 
         function eseguiLogin() {
-            const u = document.getElementById('user-code').value.trim();
-            const p = document.getElementById('user-pass').value.trim();
+            const u = document.getElementById('user-code').value.trim(); const p = document.getElementById('user-pass').value.trim();
             if(u !== "" && p !== "") socket.emit('tentativo_login', {user: u, password: p});
         }
 
         socket.on('login_success', (res) => {
-            myUser = res.user;
-            document.getElementById('login-section').style.display = 'none';
+            myUser = res.user; document.getElementById('login-section').style.display = 'none';
             document.getElementById('betting-section').style.display = 'block';
-            document.getElementById('display-username').innerText = myUser;
-            socket.emit('request_update');
+            document.getElementById('display-username').innerText = myUser; socket.emit('request_update');
         });
 
         socket.on('login_error', (msg) => { alert("❌ " + msg); });
 
         socket.on('update_data', (s) => {
-            const r = s.current_race;
-            setts = s.settings; 
-            currentHorses = r.horses;
+            const r = s.current_race; setts = s.settings; currentHorses = r.horses;
             
             if(myUser && s.users[myUser]) {
                 myBalance = parseFloat(s.users[myUser].wallet);
@@ -239,18 +217,25 @@
             }
             document.getElementById('utenti-online').innerText = s.online_users.length > 0 ? s.online_users.join(", ") : "Nessuno";
             
-            const limDiv = document.getElementById('limite-puntata');
-            if(setts.max_bet > 0) {
-                limDiv.style.display = 'block'; document.getElementById('max-bet-val').innerText = parseFloat(setts.max_bet).toFixed(2);
-            } else { limDiv.style.display = 'none'; }
+            // Nascondi Pannelli Scommesse se la gara è in corso
+            if(r.status === "racing" || r.status === "finished") {
+                document.getElementById('betting-forms-container').style.display = 'none';
+                document.getElementById('scommesse-chiuse').style.display = 'block';
+            } else {
+                document.getElementById('betting-forms-container').style.display = 'block';
+                document.getElementById('scommesse-chiuse').style.display = 'none';
+            }
             
-            // Mie Scommesse
+            // Mostra limiti per scheda
+            document.getElementById('lim-singola').innerText = setts.max_bet_singola > 0 ? `Max: ${setts.max_bet_singola.toFixed(2)}€` : "Nessun Limite";
+            document.getElementById('lim-acc').innerText = setts.max_bet_accoppiata > 0 ? `Max: ${setts.max_bet_accoppiata.toFixed(2)}€` : "Nessun Limite";
+            document.getElementById('lim-trio').innerText = setts.max_bet_trio > 0 ? `Max: ${setts.max_bet_trio.toFixed(2)}€` : "Nessun Limite";
+            
             const mie = r.bets.filter(b => b.user === myUser);
             const ulMie = document.getElementById('lista-mie-scommesse');
             ulMie.innerHTML = mie.length === 0 ? "<li>Nessuna giocata.</li>" : "";
             mie.forEach(b => ulMie.innerHTML += `<li>${b.amount.toFixed(2)}€ su <b>${b.dettaglio}</b> a quota ${b.quota}</li>`);
 
-            // Storico
             if(s.history.length > 0) {
                 const ult = s.history[s.history.length - 1];
                 document.getElementById('storico-podio').innerHTML = `<span style="color:gold;">1° ${ult.primo}</span><br><span style="color:silver;">2° ${ult.secondo}</span><br><span style="color:#cd7f32;">3° ${ult.terzo}</span>`;
@@ -259,13 +244,8 @@
                 ult.vincitori.forEach(v => ulVinc.innerHTML += `<li><b>${v.user}</b> vince ${v.vincita.toFixed(2)}€ (${v.dettaglio})</li>`);
             }
 
-            // Popola Tabella Singole
             const tbody = document.getElementById('horse-table-body');
-            const dis = r.status !== "waiting" && r.status !== "countdown" ? "disabled" : "";
-            
-            // Popola Dropdown Accoppiata/Trio
-            let opts = "";
-            r.horses.forEach(h => opts += `<option value="${h.id}">N°${h.id} - ${h.nome}</option>`);
+            let opts = ""; r.horses.forEach(h => opts += `<option value="${h.id}">N°${h.id} - ${h.nome}</option>`);
             ['acc-h1', 'acc-h2', 'trio-h1', 'trio-h2', 'trio-h3'].forEach(id => {
                 if(document.getElementById(id).innerHTML === "") document.getElementById(id).innerHTML = opts;
             });
@@ -273,31 +253,24 @@
             tbody.innerHTML = "";
             const pistaWrapper = document.getElementById('pista-wrapper');
             if(r.status === "waiting" && r.bets.length === 0) {
-                document.querySelectorAll('.cavallo').forEach(e => e.remove());
-                cavalliElements = {};
+                document.querySelectorAll('.cavallo').forEach(e => e.remove()); cavalliElements = {};
             }
 
             r.horses.forEach((h, index) => {
                 tbody.innerHTML += `<tr>
                     <td style="text-align:left;"><div style="background:${h.colore};width:20px;height:20px;border-radius:50%;display:inline-block;"></div> <b>N°${h.id}</b></td>
                     <td style="font-size:14px;">V:<b style="color:gold">${h.quota_v}</b> / P:<b style="color:#aaa">${h.quota_p}</b> / U:<b style="color:#e74c3c">${h.quota_u}</b></td>
-                    <td>
-                        <select id="tipo-${h.id}" ${dis} onchange="calcSingola(${h.id})" style="padding:5px;">
-                            <option value="Vincente">Vincente</option><option value="Piazzato">Piazzato</option><option value="Ultimo">Ultimo</option>
-                        </select>
-                    </td>
-                    <td><input type="number" id="amt-${h.id}" style="width:60px" value="5" oninput="calcSingola(${h.id})" ${dis}><br><span class="pot-win" id="pot-${h.id}">Pot: 0.00€</span></td>
-                    <td><button class="btn-bet" onclick="puntaSingola(${h.id})" ${dis}>PUNTA</button></td>
+                    <td><select id="tipo-${h.id}" onchange="calcSingola(${h.id})" style="padding:5px;"><option value="Vincente">Vincente</option><option value="Piazzato">Piazzato</option><option value="Ultimo">Ultimo</option></select></td>
+                    <td><input type="number" id="amt-${h.id}" style="width:60px" value="5" oninput="calcSingola(${h.id})"><br><span class="pot-win" id="pot-${h.id}">Pot: 0.00€</span></td>
+                    <td><button class="btn-bet" onclick="puntaSingola(${h.id})">PUNTA</button></td>
                 </tr>`;
-                setTimeout(()=>calcSingola(h.id), 100); // Inizializza vincite potenziali
+                setTimeout(()=>calcSingola(h.id), 100);
                 
                 if(!cavalliElements[h.id] && r.status === "waiting") {
                     const d = document.createElement('div'); d.className = 'cavallo'; d.style.backgroundColor = h.colore; d.innerText = h.id;
                     pistaWrapper.appendChild(d); cavalliElements[h.id] = d;
-                    const centerX = 450; const centerY = 225; 
-                    const laneX = 435 - (index * 6); const laneY = 210 - (index * 6); 
-                    d.style.left = (centerX + laneX * Math.cos(Math.PI/2) - 11) + 'px'; 
-                    d.style.top = (centerY + laneY * Math.sin(Math.PI/2) - 11) + 'px';
+                    const centerX = 450; const centerY = 225; const laneX = 435 - (index * 6); const laneY = 210 - (index * 6); 
+                    d.style.left = (centerX + laneX * Math.cos(Math.PI/2) - 11) + 'px'; d.style.top = (centerY + laneY * Math.sin(Math.PI/2) - 11) + 'px';
                 }
             });
 
@@ -308,7 +281,6 @@
             calcAccoppiata(); calcTrio();
         });
 
-        // --- CALCOLO QUOTE E VINCITE POTENZIALI ---
         function getH(id) { return currentHorses.find(h => h.id == id); }
         
         function calcSingola(id) {
@@ -316,7 +288,6 @@
             let q = t==="Piazzato"?h.quota_p : t==="Ultimo"?h.quota_u : h.quota_v;
             document.getElementById('pot-'+id).innerText = `Pot: ${(a*q).toFixed(2)}€`;
         }
-        
         function calcAccoppiata() {
             const h1 = getH(document.getElementById('acc-h1').value); const h2 = getH(document.getElementById('acc-h2').value);
             const ord = document.getElementById('acc-tipo').value === "ordine"; const a = parseFloat(document.getElementById('acc-amt').value)||0;
@@ -325,7 +296,6 @@
             document.getElementById('acc-quota').innerText = q; document.getElementById('acc-pot').innerText = `Vincita Potenziale: ${(a*q).toFixed(2)}€`;
             document.getElementById('btn-acc').disabled = (h1.id === h2.id);
         }
-        
         function calcTrio() {
             const h1 = getH(document.getElementById('trio-h1').value); const h2 = getH(document.getElementById('trio-h2').value); const h3 = getH(document.getElementById('trio-h3').value);
             const ord = document.getElementById('trio-tipo').value === "ordine"; const a = parseFloat(document.getElementById('trio-amt').value)||0;
@@ -335,53 +305,47 @@
             document.getElementById('btn-trio').disabled = (h1.id===h2.id || h1.id===h3.id || h2.id===h3.id);
         }
 
-        // --- INVIO SCOMMESSE ---
+        function preCheck(amt) { if(amt > myBalance) { alert("❌ Saldo insufficiente! Ricarica il conto."); return false; } return true; }
+
         function puntaSingola(id) {
             const a = parseFloat(document.getElementById('amt-'+id).value); const t = document.getElementById('tipo-'+id).value;
             const h = getH(id); let q = t==="Piazzato"?h.quota_p : t==="Ultimo"?h.quota_u : h.quota_v;
-            socket.emit('place_bet', {user: myUser, amount: a, type: t, horse_id: id, quota: q, dettaglio: `N°${id} (${t})`, h1: id});
+            if(preCheck(a) && a > 0) socket.emit('place_bet', {user: myUser, amount: a, type: t, horse_id: id, quota: q, dettaglio: `N°${id} (${t})`, h1: id});
         }
-        
         function puntaAccoppiata() {
             const id1 = parseInt(document.getElementById('acc-h1').value); const id2 = parseInt(document.getElementById('acc-h2').value);
             const ord = document.getElementById('acc-tipo').value === "ordine"; const a = parseFloat(document.getElementById('acc-amt').value);
-            const q = parseFloat(document.getElementById('acc-quota').innerText);
-            const dett = `Accoppiata ${ord?'Ordine':'Giro'} (N°${id1}-N°${id2})`;
-            socket.emit('place_bet', {user: myUser, amount: a, type: "Accoppiata", horse_id: id1, quota: q, dettaglio: dett, h1: id1, h2: id2, ordine: ord});
+            const q = parseFloat(document.getElementById('acc-quota').innerText); const dett = `Accoppiata ${ord?'Ordine':'Giro'} (N°${id1}-N°${id2})`;
+            if(preCheck(a) && a > 0) socket.emit('place_bet', {user: myUser, amount: a, type: "Accoppiata", horse_id: id1, quota: q, dettaglio: dett, h1: id1, h2: id2, ordine: ord});
         }
-        
         function puntaTrio() {
             const id1 = parseInt(document.getElementById('trio-h1').value); const id2 = parseInt(document.getElementById('trio-h2').value); const id3 = parseInt(document.getElementById('trio-h3').value);
             const ord = document.getElementById('trio-tipo').value === "ordine"; const a = parseFloat(document.getElementById('trio-amt').value);
-            const q = parseFloat(document.getElementById('trio-quota').innerText);
-            const dett = `Trio ${ord?'Ordine':'Giro'} (N°${id1}-N°${id2}-N°${id3})`;
-            socket.emit('place_bet', {user: myUser, amount: a, type: "Trio", horse_id: id1, quota: q, dettaglio: dett, h1: id1, h2: id2, h3:id3, ordine: ord});
+            const q = parseFloat(document.getElementById('trio-quota').innerText); const dett = `Trio ${ord?'Ordine':'Giro'} (N°${id1}-N°${id2}-N°${id3})`;
+            if(preCheck(a) && a > 0) socket.emit('place_bet', {user: myUser, amount: a, type: "Trio", horse_id: id1, quota: q, dettaglio: dett, h1: id1, h2: id2, h3:id3, ordine: ord});
         }
 
-        // --- EVENTI GARA ---
         socket.on('timer_update', (t) => { document.getElementById('timer-display').innerText = "CHIUSURA IN: " + t + "s"; });
 
         socket.on('race_start', () => {
             document.getElementById('timer-display').innerText = "🐎 PARTITI! 🐎";
-            currentState = "racing";
-            playYTMese(setts.yt_race_url, setts.yt_race_start); // Musica epica Gara!
+            currentState = "racing"; playYTMese(setts.yt_race_url, setts.yt_race_start);
         });
 
         socket.on('race_update', (pos) => {
             let index = 0;
             Object.keys(pos).forEach(id => {
-                const centerX = 450; const centerY = 225; 
-                const laneX = 435 - (index * 6); const laneY = 210 - (index * 6);
-                const x = centerX + laneX * Math.cos(pos[id] + Math.PI / 2);
-                const y = centerY + laneY * Math.sin(pos[id] + Math.PI / 2);
+                const centerX = 450; const centerY = 225; const laneX = 435 - (index * 6); const laneY = 210 - (index * 6);
+                const x = centerX + laneX * Math.cos(pos[id] + Math.PI / 2); const y = centerY + laneY * Math.sin(pos[id] + Math.PI / 2);
                 if(cavalliElements[id]) { cavalliElements[id].style.left = (x - 11) +'px'; cavalliElements[id].style.top = (y - 11) +'px'; }
                 index++;
             });
         });
 
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         socket.on('race_finished', (risultato) => {
             document.getElementById('timer-display').innerText = "🏁 GARA CONCLUSA! 🏁";
-            stopYTFade(); // Ferma la musica della gara sfumando
+            stopYTFade();
             annunciaVincitore(risultato.primo_nome, risultato.primo_id);
             
             let miaVincitaTotale = 0;
