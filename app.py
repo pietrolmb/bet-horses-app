@@ -131,12 +131,14 @@ def start_race():
     
     posizioni = {h["id"]: 0 for h in race["horses"]}
     
-    for _ in range(150):
-        for h in race["horses"]: posizioni[h["id"]] += random.uniform(0.02, 0.08)
+    # PIÙ LENTA: 250 step con avanzamento ridotto = Corsa più lunga
+    for _ in range(250):
+        for h in race["horses"]: posizioni[h["id"]] += random.uniform(0.015, 0.05)
         socketio.emit('race_update', posizioni)
         socketio.sleep(0.1)
         
     classifica = sorted(race["horses"], key=lambda h: posizioni[h["id"]], reverse=True)
+    
     id_primo = classifica[0]["id"]
     id_secondo = classifica[1]["id"]
     id_terzo = classifica[2]["id"]
@@ -159,10 +161,20 @@ def start_race():
     data["admin_stats"]["totale_pagato"] += totale_pagato_gara
     data["admin_stats"]["bilancio"] = data["admin_stats"]["totale_incassato"] - data["admin_stats"]["totale_pagato"]
     
+    # SALVO LE QUOTE PER IL RESOCONTO
+    q1 = classifica[0]["quota_v"]
+    q2 = classifica[1]["quota_v"]
+    q3 = classifica[2]["quota_v"]
+    qu = classifica[-1]["quota_u"]
+    
     risultato = {
         "gara_num": len(data["history"]) + 1,
-        "primo": classifica[0]["nome"], "secondo": classifica[1]["nome"],
-        "terzo": classifica[2]["nome"], "ultimo": classifica[-1]["nome"],
+        "primo": f"N°{id_primo} - {classifica[0]['nome']}", "q_primo": q1,
+        "secondo": f"N°{id_secondo} - {classifica[1]['nome']}",
+        "terzo": f"N°{id_terzo} - {classifica[2]['nome']}", 
+        "ultimo": f"N°{id_ultimo} - {classifica[-1]['nome']}", "q_ultimo": qu,
+        "q_accoppiata": round(q1 * q2, 2),
+        "q_trio": round(q1 * q2 * q3, 2),
         "vincitori": vincitori_gara
     }
     data["history"].append(risultato)
