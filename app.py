@@ -12,7 +12,8 @@ data = {
     "online_users": [],
     "admin_stats": {"totale_incassato": 0, "totale_pagato": 0, "bilancio": 0},
     "current_race": {"status": "waiting", "horses": [], "bets": [], "timer": 0},
-    "history": []
+    "history": [],
+    "settings": {"auto_timer": True} # Nuovo: Switch Timer
 }
 
 NOMI_A = ["Western", "Più Forte", "Lord", "Stud", "National", "Golden", "Pocket", "Diamond", "Wild", "Cowboy"]
@@ -28,7 +29,8 @@ def genera_nuova_corsa():
         horses.append({
             "id": i + 1, "nome": nomi[i], 
             "quota_v": max(1.20, quota_v),
-            "quota_p": max(1.10, round(quota_v / 3, 2)), # Quota piazzato
+            "quota_p": max(1.10, round(quota_v / 3, 2)), 
+            "quota_u": max(1.50, round(quota_v * 0.8, 2)), # Quota Ultimo
             "colore": f"#{random.randint(100,255):02x}{random.randint(100,255):02x}{random.randint(100,255):02x}"
         })
     return horses
@@ -49,19 +51,22 @@ def handle_wallet(req):
     user = req['user']
     password = req.get('password', '1234')
     amount = req['amount']
-    if user not in data["users"]:
-        data["users"][user] = {"wallet": 0, "password": password}
+    if user not in data["users"]: data["users"][user] = {"wallet": 0, "password": password}
     else:
         if password != "": data["users"][user]["password"] = password
     data["users"][user]["wallet"] += amount
     socketio.emit('update_data', data)
 
-# FORZATURA PARTENZA DA PARTE DELL'ADMIN
+@socketio.on('admin_toggle_timer')
+def toggle_timer():
+    data["settings"]["auto_timer"] = not data["settings"]["auto_timer"]
+    socketio.emit('update_data', data)
+
 @socketio.on('admin_force_start')
 def force_start():
     race = data["current_race"]
     if race["status"] in ["waiting", "countdown"]:
-        race["timer"] = 1 # Forza il timer a finire istantaneamente
+        race["timer"] = 1 
         if race["status"] == "waiting":
             race["status"] = "countdown"
             socketio.start_background_task(run_countdown)
@@ -88,24 +93,23 @@ def handle_bet(bet_data):
     if user in data["users"] and data["users"][user]["wallet"] >= importo and race["status"] in ["waiting", "countdown"]:
         data["users"][user]["wallet"] -= importo
         data["admin_stats"]["totale_incassato"] += importo
-        data["admin_stats"]["bilancio"] += importo
         
-        # Assegna la quota giusta in base al tipo di scommessa
         cavallo = next(h for h in race["horses"] if h["id"] == bet_data['horse_id'])
-        quota = cavallo["quota_p"] if tipo == "Piazzato" else cavallo["quota_v"]
+        if tipo == "Piazzato": quota = cavallo["quota_p"]
+        elif tipo == "Ultimo": quota = cavallo["quota_u"]
+        else: quota = cavallo["quota_v"]
         
         race["bets"].append({
-            "user": user, 
-            "horse_id": bet_data['horse_id'], 
-            "amount": importo, 
-            "quota": quota,
-            "type": tipo
+            "user": user, "horse_id": bet_data['horse_id'], "horse_nome": cavallo['nome'],
+            "amount": importo, "quota": quota, "type": tipo
         })
         
-        race["timer"] = 60
-        if race["status"] == "waiting":
-            race["status"] = "countdown"
-            socketio.start_background_task(run_countdown)
+        if data["settings"]["auto_timer"]:
+            race["timer"] = 60
+            if race["status"] == "waiting":
+                race["status"] = "countdown"
+                socketio.start_background_task(run_countdown)
+        
         socketio.emit('update_data', data)
 
 def run_countdown():
@@ -129,18 +133,39 @@ def start_race():
         socketio.sleep(0.1)
         
     classifica = sorted(race["horses"], key=lambda h: posizioni[h["id"]], reverse=True)
+    id_primo = classifica[0]["id"]
+    id_secondo = classifica[1]["id"]
+    id_terzo = classifica[2]["id"]
+    id_ultimo = classifica[-1]["id"]
+    
+    # CALCOLO VINCITE
+    vincitori_gara = []
+    totale_pagato_gara = 0
+    for bet in race["bets"]:
+        vinto = False
+        if bet["type"] == "Vincente" and bet["horse_id"] == id_primo: vinto = True
+        elif bet["type"] == "Piazzato" and bet["horse_id"] in [id_primo, id_secondo, id_terzo]: vinto = True
+        elif bet["type"] == "Ultimo" and bet["horse_id"] == id_ultimo: vinto = True
+        
+        if vinto:
+            vincita = round(bet["amount"] * bet["quota"], 2)
+            data["users"][bet["user"]]["wallet"] += vincita
+            totale_pagato_gara += vincita
+            vincitori_gara.append({"user": bet["user"], "vincita": vincita, "tipo": bet["type"]})
+            
+    data["admin_stats"]["totale_pagato"] += totale_pagato_gara
+    data["admin_stats"]["bilancio"] = data["admin_stats"]["totale_incassato"] - data["admin_stats"]["totale_pagato"]
     
     risultato = {
         "gara_num": len(data["history"]) + 1,
-        "primo": classifica[0]["nome"],
-        "secondo": classifica[1]["nome"],
-        "terzo": classifica[2]["nome"],
-        "ultimo": classifica[-1]["nome"]
+        "primo": classifica[0]["nome"], "secondo": classifica[1]["nome"],
+        "terzo": classifica[2]["nome"], "ultimo": classifica[-1]["nome"],
+        "vincitori": vincitori_gara
     }
     data["history"].append(risultato)
     
     socketio.emit('race_finished')
-    socketio.sleep(5) # Pausa di 5 secondi per far leggere il risultato
+    socketio.sleep(5) 
     
     race["status"] = "waiting"
     race["horses"] = genera_nuova_corsa()
