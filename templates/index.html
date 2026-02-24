@@ -8,7 +8,11 @@
         body { background: #1a472a; color: white; font-family: sans-serif; text-align: center; margin: 0; padding-bottom: 50px;}
         
         #pista-wrapper { width: 900px; height: 450px; position: relative; margin: 30px auto; }
-        #pista-bg { width: 100%; height: 100%; background: #2d5a3c; border-radius: 50%; border: 90px solid #8B4513; box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px black; box-sizing: border-box; position: absolute; top: 0; left: 0;}
+        #pista-bg { 
+            width: 100%; height: 100%; background: #2d5a3c; border-radius: 50%; 
+            border: 90px solid #8B4513; box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px black; 
+            box-sizing: border-box; position: absolute; top: 0; left: 0;
+        }
         .traguardo { position: absolute; bottom: 0; left: 50%; width: 6px; height: 90px; background: repeating-linear-gradient(to bottom, white 0, white 5px, red 5px, red 10px); z-index: 1; transform: translateX(-50%);}
         .cavallo { width: 22px; height: 22px; border-radius: 50%; position: absolute; border: 2px solid #fff; font-size: 11px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 10; transition: all 0.12s linear;}
         
@@ -85,7 +89,7 @@
 
             <div id="betting-forms-container">
                 <div class="tabs">
-                    <button class="tab-btn active" onclick="switchTab('tab-singola')">Singola / Piazzato</button>
+                    <button class="tab-btn active" onclick="switchTab('tab-singola')">Singola / Ultimo</button>
                     <button class="tab-btn" onclick="switchTab('tab-accoppiata')">Accoppiata</button>
                     <button class="tab-btn" onclick="switchTab('tab-trio')">Trio</button>
                 </div>
@@ -102,16 +106,16 @@
                     <p class="limite-txt" id="lim-acc">Max puntata: 0.00€</p>
                     <div style="background:#222; padding:20px; border-radius:8px; border:1px solid #555;">
                         <h3 style="margin-top:0; color:gold;">Scegli 2 Cavalli</h3>
-                        <select id="acc-h1" onchange="calcAccoppiata()" style="padding:10px; margin:5px;"></select>
-                        <select id="acc-h2" onchange="calcAccoppiata()" style="padding:10px; margin:5px;"></select><br><br>
-                        <select id="acc-tipo" onchange="calcAccoppiata()" style="padding:10px;">
+                        <select id="acc-h1" onchange="calcAccoppiata()" style="padding:10px; margin:5px; font-size:16px;"></select>
+                        <select id="acc-h2" onchange="calcAccoppiata()" style="padding:10px; margin:5px; font-size:16px;"></select><br><br>
+                        <select id="acc-tipo" onchange="calcAccoppiata()" style="padding:10px; font-size:16px;">
                             <option value="ordine">In Ordine Esatto</option>
                             <option value="giro">A Giro (Ordine Casuale)</option>
                         </select><br><br>
                         <b>Quota: <span id="acc-quota" style="color:gold; font-size:20px;">0.00</span></b><br>
-                        <input type="number" id="acc-amt" value="5" oninput="calcAccoppiata()" style="padding:10px; width:80px; margin-top:10px;"> €<br>
+                        <input type="number" id="acc-amt" value="5" oninput="calcAccoppiata()" style="padding:10px; width:80px; margin-top:10px; font-size:16px;"> €<br>
                         <span class="pot-win" id="acc-pot">Potenziale Vincita: 0.00€</span><br>
-                        <button class="btn-bet" style="margin-top:10px; padding:10px 30px;" onclick="puntaAccoppiata()" id="btn-acc">PUNTA ACCOPPIATA</button>
+                        <button class="btn-bet" style="margin-top:15px; padding:10px 30px; font-size:16px;" onclick="puntaAccoppiata()" id="btn-acc">PUNTA ACCOPPIATA</button>
                     </div>
                 </div>
 
@@ -119,17 +123,17 @@
                     <p class="limite-txt" id="lim-trio">Max puntata: 0.00€</p>
                     <div style="background:#222; padding:20px; border-radius:8px; border:1px solid #555;">
                         <h3 style="margin-top:0; color:gold;">Scegli 3 Cavalli</h3>
-                        <select id="trio-h1" onchange="calcTrio()" style="padding:10px; margin:5px;"></select>
-                        <select id="trio-h2" onchange="calcTrio()" style="padding:10px; margin:5px;"></select>
-                        <select id="trio-h3" onchange="calcTrio()" style="padding:10px; margin:5px;"></select><br><br>
-                        <select id="trio-tipo" onchange="calcTrio()" style="padding:10px;">
+                        <select id="trio-h1" onchange="calcTrio()" style="padding:10px; margin:5px; font-size:16px;"></select> 
+                        <select id="trio-h2" onchange="calcTrio()" style="padding:10px; margin:5px; font-size:16px;"></select> 
+                        <select id="trio-h3" onchange="calcTrio()" style="padding:10px; margin:5px; font-size:16px;"></select><br><br>
+                        <select id="trio-tipo" onchange="calcTrio()" style="padding:10px; font-size:16px;">
                             <option value="ordine">In Ordine Esatto</option>
                             <option value="giro">A Giro (Ordine Casuale)</option>
                         </select><br><br>
                         <b>Quota: <span id="trio-quota" style="color:gold; font-size:20px;">0.00</span></b><br>
-                        <input type="number" id="trio-amt" value="5" oninput="calcTrio()" style="padding:10px; width:80px; margin-top:10px;"> €<br>
+                        <input type="number" id="trio-amt" value="5" oninput="calcTrio()" style="padding:10px; width:80px; margin-top:10px; font-size:16px;"> €<br>
                         <span class="pot-win" id="trio-pot">Potenziale Vincita: 0.00€</span><br>
-                        <button class="btn-bet" style="margin-top:10px; padding:10px 30px;" onclick="puntaTrio()" id="btn-trio">PUNTA TRIO</button>
+                        <button class="btn-bet" style="margin-top:15px; padding:10px 30px; font-size:16px;" onclick="puntaTrio()" id="btn-trio">PUNTA TRIO</button>
                     </div>
                 </div>
             </div>
@@ -137,7 +141,7 @@
             <div class="info-panel">
                 <div class="podio" style="border-right: 1px solid #555;">
                     <h4>👥 Online: <span id="utenti-online" style="color:#3498db;"></span></h4>
-                    <hr>
+                    <hr style="border-color:#444; margin:15px 0;">
                     <h4>🏆 Ultima Gara:</h4><p id="storico-podio">In attesa...</p>
                 </div>
                 <div class="podio">
@@ -164,7 +168,7 @@
             event.target.classList.add('active'); 
         }
 
-        // --- MOTORE YOUTUBE CORAZZATO ---
+        // --- MOTORE YOUTUBE CON LOOP CORRETTO ---
         let ytPlayer; 
         let ytReady = false; 
         let ytFadeIn, ytFadeOut, ytLoopMonitor;
@@ -312,7 +316,7 @@
             }
             document.getElementById('utenti-online').innerText = s.online_users.length > 0 ? s.online_users.join(", ") : "Nessuno";
             
-            // LA MAGIA DEL BANNER: Scompare istantaneamente tutto appena cambia lo stato
+            // Mostra Nascondi Banner
             if(r.status === "racing" || r.status === "finished") { 
                 document.getElementById('betting-forms-container').style.display = 'none'; 
                 document.getElementById('scommesse-chiuse').style.display = 'block'; 
@@ -341,7 +345,7 @@
                 ult.vincitori.forEach(v => ulV.innerHTML += `<li><b>${v.user}</b> vince ${v.vincita.toFixed(2)}€</li>`); 
             }
             
-            // Popola tabelle quote e tendine
+            // Popola tabelle quote e tendine (Senza Piazzato!)
             const tbody = document.getElementById('horse-table-body'); 
             tbody.innerHTML = ""; 
             let opts = ""; 
@@ -352,13 +356,18 @@
                 tbody.innerHTML += `
                 <tr>
                     <td style="text-align:left;"><div style="background:${h.colore};width:20px;height:20px;border-radius:50%;display:inline-block;vertical-align:middle;"></div> <b>N°${h.id}</b> - ${h.nome}</td>
-                    <td style="font-size:14px;">V:<b style="color:gold">${h.quota_v}</b> / P:<b style="color:#aaa">${h.quota_p}</b> / U:<b style="color:#e74c3c">${h.quota_u}</b></td>
-                    <td><select id="tipo-${h.id}" onchange="calcSingola(${h.id})" style="padding:5px;"><option value="Vincente">Vincente</option><option value="Piazzato">Piazzato</option><option value="Ultimo">Ultimo</option></select></td>
+                    <td style="font-size:14px;">V: <b style="color:gold">${h.quota_v}</b> / U: <b style="color:#e74c3c">${h.quota_u}</b></td>
+                    <td>
+                        <select id="tipo-${h.id}" onchange="calcSingola(${h.id})" style="padding:5px;">
+                            <option value="Vincente">Vincente</option>
+                            <option value="Ultimo">Ultimo</option>
+                        </select>
+                    </td>
                     <td><input type="number" id="amt-${h.id}" value="5" style="width:60px" oninput="calcSingola(${h.id})"><br><span id="pot-${h.id}" class="pot-win"></span></td>
                     <td><button class="btn-bet" onclick="puntaSingola(${h.id})">PUNTA</button></td>
                 </tr>`;
                 
-                // Animazione matematica perfetta sulla linea di partenza
+                // Creazione Elementi Grafici Pista
                 if(!cavalliElements[h.id] && r.status === "waiting") { 
                     const d = document.createElement('div'); 
                     d.className = 'cavallo'; 
@@ -367,7 +376,7 @@
                     document.getElementById('pista-wrapper').appendChild(d); 
                     cavalliElements[h.id] = d; 
                     
-                    const cx = 450, cy = 225, lx = 435-(index*6), ly = 210-(index*6); 
+                    const cx = 450, cy = 225, lx = 435 - (index * 6), ly = 210 - (index * 6); 
                     d.style.left = (cx + lx * Math.cos(Math.PI/2) - 11) + 'px'; 
                     d.style.top = (cy + ly * Math.sin(Math.PI/2) - 11) + 'px'; 
                 }
@@ -382,13 +391,13 @@
                 if(document.getElementById(id).innerHTML === "") document.getElementById(id).innerHTML = opts; 
             });
             
-            // Forza ricalcolo vincite potenziali sulle schede all'apertura
+            // Forza ricalcolo vincite potenziali
             r.horses.forEach(h => calcSingola(h.id)); 
             calcAccoppiata(); 
             calcTrio();
             
             if(r.status === "waiting") {
-                document.getElementById('timer-display').innerText = "IN ATTESA DI GIOCATORI";
+                document.getElementById('timer-display').innerText = setts.auto_timer ? "IN ATTESA DI SCOMMESSE" : "ATTESA PARTENZA (Manuale)";
                 // Ripristina la musica d'attesa se la gara era finita
                 if(audioAttivo && setts.yt_wait_enable && (!ytPlayer || ytPlayer.getPlayerState() !== 1)) {
                     playYT(setts.yt_wait_url, setts.yt_wait_start, setts.yt_wait_end, true); 
@@ -403,7 +412,7 @@
             const h = getH(id); 
             const t = document.getElementById('tipo-'+id).value; 
             const a = parseFloat(document.getElementById('amt-'+id).value)||0; 
-            let q = t==="Piazzato"?h.quota_p:t==="Ultimo"?h.quota_u:h.quota_v; 
+            let q = t === "Ultimo" ? h.quota_u : h.quota_v; 
             document.getElementById('pot-'+id).innerText = `Potenziale: ${(a*q).toFixed(2)}€`; 
         }
         function calcAccoppiata() { 
@@ -412,8 +421,8 @@
             const ord=document.getElementById('acc-tipo').value==="ordine";
             const a=parseFloat(document.getElementById('acc-amt').value)||0; 
             if(h1.id === h2.id) { document.getElementById('acc-quota').innerText = "Errore"; return; }
-            let q = (h1.quota_v*h2.quota_v*0.7).toFixed(2); 
-            if(!ord) q=(q/2).toFixed(2); 
+            let q = (h1.quota_v * h2.quota_v * 0.7).toFixed(2); 
+            if(!ord) q = (q/2).toFixed(2); 
             document.getElementById('acc-quota').innerText = q; 
             document.getElementById('acc-pot').innerText = `Potenziale: ${(a*q).toFixed(2)}€`; 
             document.getElementById('btn-acc').disabled = (h1.id === h2.id);
@@ -425,8 +434,8 @@
             const ord=document.getElementById('trio-tipo').value==="ordine";
             const a=parseFloat(document.getElementById('trio-amt').value)||0; 
             if(h1.id===h2.id || h1.id===h3.id || h2.id===h3.id) { document.getElementById('trio-quota').innerText = "Errore"; return; }
-            let q = (h1.quota_v*h2.quota_v*h3.quota_v*0.6).toFixed(2); 
-            if(!ord) q=(q/6).toFixed(2); 
+            let q = (h1.quota_v * h2.quota_v * h3.quota_v * 0.6).toFixed(2); 
+            if(!ord) q = (q/6).toFixed(2); 
             document.getElementById('trio-quota').innerText = q; 
             document.getElementById('trio-pot').innerText = `Potenziale: ${(a*q).toFixed(2)}€`; 
             document.getElementById('btn-trio').disabled = (h1.id===h2.id || h1.id===h3.id || h2.id===h3.id);
@@ -441,7 +450,7 @@
             const a = parseFloat(document.getElementById('amt-'+id).value); 
             if(!preCheck(a)) return; 
             const t = document.getElementById('tipo-'+id).value, h = getH(id); 
-            let q = t==="Piazzato"?h.quota_p:t==="Ultimo"?h.quota_u:h.quota_v; 
+            let q = t === "Ultimo" ? h.quota_u : h.quota_v; 
             socket.emit('place_bet', {user:myUser, amount:a, type:t, horse_id:id, quota:q, dettaglio:`N°${id} (${t})`, h1:id}); 
         }
         function puntaAccoppiata() { 
@@ -478,36 +487,38 @@
         });
         
         socket.on('race_update', (pos) => { 
-            let index = 0;
+            // Cerca dinamicamente l'indice corretto basato sull'ordine in currentHorses (previene pallini fuori pista)
             Object.keys(pos).forEach(id => { 
+                let index = 0;
+                for(let i=0; i<currentHorses.length; i++) {
+                    if(currentHorses[i].id == id) { index = i; break; }
+                }
+                
                 const cx = 450, cy = 225, lx = 435 - (index * 6), ly = 210 - (index * 6); 
                 const x = cx + lx * Math.cos(pos[id] + Math.PI/2);
                 const y = cy + ly * Math.sin(pos[id] + Math.PI/2); 
+                
                 if(cavalliElements[id]) { 
                     cavalliElements[id].style.left = (x - 11) + 'px'; 
                     cavalliElements[id].style.top = (y - 11) + 'px'; 
                 } 
-                index++;
             }); 
         });
         
         socket.on('race_finished', (res) => { 
             document.getElementById('timer-display').innerText = "🏁 GARA CONCLUSA! 🏁"; 
             
-            // Ferma l'audio di gara sfumandolo
-            fadeOutYT(); 
-            
+            fadeOutYT(); // Sfuma la musica della gara
             if(audioAttivo) { galoppo.pause(); galoppo.currentTime = 0; }
             document.getElementById('audio-folla').play(); 
             setTimeout(()=>document.getElementById('audio-folla').pause(), 4000);
             
-            // Lo speaker annuncia il vincitore e fa partire la canzone YouTube di Trionfo
             annunciaVincitore(res.primo_nome, res.primo_id);
             
-            let vTot = 0; 
-            res.vincitori.forEach(v => { if(v.user === myUser) vTot += v.vincita; }); 
-            if(vTot > 0){ 
-                document.getElementById('win-amount').innerText = `Hai Vinto ${vTot.toFixed(2)}€!`; 
+            let miaVincitaTotale = 0;
+            res.vincitori.forEach(v => { if(v.user === myUser) miaVincitaTotale += v.vincita; }); 
+            if(miaVincitaTotale > 0){ 
+                document.getElementById('win-amount').innerText = `Hai Vinto ${miaVincitaTotale.toFixed(2)}€!`; 
                 document.getElementById('win-banner').style.display='block'; 
                 setTimeout(()=>document.getElementById('win-banner').style.display='none', 9000); 
             } 
