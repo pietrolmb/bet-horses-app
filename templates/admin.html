@@ -8,8 +8,8 @@
         .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .stats { display: flex; gap: 20px; margin-bottom: 20px;}
         .stat-box { flex: 1; padding: 20px; border-radius: 8px; text-align: center; color: white; font-size: 18px; font-weight: bold;}
-        input { padding: 8px; font-size: 14px; border: 1px solid #bdc3c7; border-radius: 4px; margin-right: 5px;}
-        button { padding: 10px 20px; font-size: 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;}
+        input { padding: 5px; font-size: 13px; border: 1px solid #bdc3c7; border-radius: 4px; margin-right: 2px;}
+        button { padding: 10px 20px; font-size: 14px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;}
         .btn-forza { background: #e74c3c; width: 100%; font-size: 18px; padding: 10px; margin-top: 5px; border-radius: 8px;}
         .btn-toggle { background: #f39c12; width: 100%; font-size: 18px; padding: 10px; margin-bottom: 10px; border-radius: 8px;}
         table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white;}
@@ -50,18 +50,32 @@
                 <button id="btn-switch-timer" onclick="toggleTimer()" style="width:100%; margin-bottom:15px;">TIMER AUTOMATICO</button>
                 
                 <div class="sett-grid">
-                    <div class="sett-box"><b>Max Singola (€)</b><br><input type="number" id="set-max-s" style="width:100%;"></div>
-                    <div class="sett-box"><b>Max Accoppiata</b><br><input type="number" id="set-max-a" style="width:100%;"></div>
-                    <div class="sett-box"><b>Max Trio (€)</b><br><input type="number" id="set-max-t" style="width:100%;"></div>
+                    <div class="sett-box"><b>Max Singola</b><br><input type="number" id="set-max-s" style="width:90%;"></div>
+                    <div class="sett-box"><b>Max Accoppiata</b><br><input type="number" id="set-max-a" style="width:90%;"></div>
+                    <div class="sett-box"><b>Max Trio</b><br><input type="number" id="set-max-t" style="width:90%;"></div>
                     
                     <div class="sett-box" style="grid-column: span 3;">
-                        <b>Timer Gara (Sec):</b> <input type="number" id="set-timer-dur" style="width:80px;">
+                        <b>Timer Gara:</b> <input type="number" id="set-timer-dur" style="width:50px;"> sec. | 
+                        <b>Cavalli in pista:</b> Da <input type="number" id="set-min-h" style="width:40px;"> a <input type="number" id="set-max-h" style="width:40px;">
+                        
                         <hr style="margin:10px 0;">
-                        <b>🎵 Regia YouTube (Inserisci gli ID dei video)</b><br>
+                        <b>🎵 Regia YouTube</b> <small>(Fino a = 0 significa no loop)</small><br>
                         <table style="width:100%; margin-top:5px; border:none;">
-                            <tr><td style="border:none;"><b>Attesa</b></td><td style="border:none;"><input type="text" id="yt-wait-url" placeholder="ID"></td><td style="border:none;">Da: <input type="number" id="yt-wait-start" style="width:40px;">s</td></tr>
-                            <tr><td style="border:none;"><b>Gara</b></td><td style="border:none;"><input type="text" id="yt-race-url" placeholder="ID"></td><td style="border:none;">Da: <input type="number" id="yt-race-start" style="width:40px;">s</td></tr>
-                            <tr><td style="border:none;"><b>Vittoria</b></td><td style="border:none;"><input type="text" id="yt-win-url" placeholder="ID"></td><td style="border:none;">Da: <input type="number" id="yt-win-start" style="width:40px;">s</td></tr>
+                            <tr>
+                                <td style="border:none;"><input type="checkbox" id="yt-wait-en"> <b>Attesa</b></td>
+                                <td style="border:none;"><input type="text" id="yt-wait-url" placeholder="ID" style="width:80px;"></td>
+                                <td style="border:none;">Da <input type="number" id="yt-wait-start" style="width:40px;"> Fino a <input type="number" id="yt-wait-end" style="width:40px;">s</td>
+                            </tr>
+                            <tr>
+                                <td style="border:none;"><input type="checkbox" id="yt-race-en"> <b>Gara</b></td>
+                                <td style="border:none;"><input type="text" id="yt-race-url" placeholder="ID" style="width:80px;"></td>
+                                <td style="border:none;">Da <input type="number" id="yt-race-start" style="width:40px;"> Fino a <input type="number" id="yt-race-end" style="width:40px;">s</td>
+                            </tr>
+                            <tr>
+                                <td style="border:none;"><input type="checkbox" id="yt-win-en"> <b>Vittoria</b></td>
+                                <td style="border:none;"><input type="text" id="yt-win-url" placeholder="ID" style="width:80px;"></td>
+                                <td style="border:none;">Da <input type="number" id="yt-win-start" style="width:40px;"> Fino a <input type="number" id="yt-win-end" style="width:40px;">s</td>
+                            </tr>
                         </table>
                     </div>
                 </div>
@@ -74,11 +88,10 @@
         </div>
 
         <div style="flex: 1;">
-            
             <div class="card" style="border-left: 5px solid #9b59b6;">
                 <h3>👥 Database Utenti</h3>
                 <table id="tabella-utenti">
-                    <thead><tr><th>Giocatore</th><th>Stato</th><th>Saldo</th><th>Tot. Deposito</th><th>Tot. Vinto</th><th>Tot. Perso</th></tr></thead>
+                    <thead><tr><th>Giocatore</th><th>Stato</th><th>Saldo</th><th>Depositato</th><th>Vinto</th><th>Perso</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -120,12 +133,20 @@
                 max_bet_accoppiata: parseFloat(document.getElementById('set-max-a').value)||0,
                 max_bet_trio: parseFloat(document.getElementById('set-max-t').value)||0,
                 timer_duration: parseInt(document.getElementById('set-timer-dur').value)||60,
+                min_horses: parseInt(document.getElementById('set-min-h').value)||6,
+                max_horses: parseInt(document.getElementById('set-max-h').value)||9,
+                yt_wait_enable: document.getElementById('yt-wait-en').checked,
                 yt_wait_url: extractID(document.getElementById('yt-wait-url').value),
                 yt_wait_start: parseInt(document.getElementById('yt-wait-start').value)||0,
+                yt_wait_end: parseInt(document.getElementById('yt-wait-end').value)||0,
+                yt_race_enable: document.getElementById('yt-race-en').checked,
                 yt_race_url: extractID(document.getElementById('yt-race-url').value),
                 yt_race_start: parseInt(document.getElementById('yt-race-start').value)||0,
+                yt_race_end: parseInt(document.getElementById('yt-race-end').value)||0,
+                yt_win_enable: document.getElementById('yt-win-en').checked,
                 yt_win_url: extractID(document.getElementById('yt-win-url').value),
-                yt_win_start: parseInt(document.getElementById('yt-win-start').value)||0
+                yt_win_start: parseInt(document.getElementById('yt-win-start').value)||0,
+                yt_win_end: parseInt(document.getElementById('yt-win-end').value)||0
             });
             alert("Regia e Limiti salvati!");
         }
@@ -143,12 +164,23 @@
             document.getElementById('set-max-a').value = s.settings.max_bet_accoppiata;
             document.getElementById('set-max-t').value = s.settings.max_bet_trio;
             document.getElementById('set-timer-dur').value = s.settings.timer_duration;
+            document.getElementById('set-min-h').value = s.settings.min_horses;
+            document.getElementById('set-max-h').value = s.settings.max_horses;
+            
+            document.getElementById('yt-wait-en').checked = s.settings.yt_wait_enable;
             document.getElementById('yt-wait-url').value = s.settings.yt_wait_url;
             document.getElementById('yt-wait-start').value = s.settings.yt_wait_start;
+            document.getElementById('yt-wait-end').value = s.settings.yt_wait_end;
+            
+            document.getElementById('yt-race-en').checked = s.settings.yt_race_enable;
             document.getElementById('yt-race-url').value = s.settings.yt_race_url;
             document.getElementById('yt-race-start').value = s.settings.yt_race_start;
+            document.getElementById('yt-race-end').value = s.settings.yt_race_end;
+            
+            document.getElementById('yt-win-en').checked = s.settings.yt_win_enable;
             document.getElementById('yt-win-url').value = s.settings.yt_win_url;
             document.getElementById('yt-win-start').value = s.settings.yt_win_start;
+            document.getElementById('yt-win-end').value = s.settings.yt_win_end;
 
             const btnToggle = document.getElementById('btn-switch-timer');
             if(s.settings.auto_timer) { btnToggle.innerText = "MODALITA': TIMER ATTIVO"; btnToggle.style.background = "#2ecc71"; } 
@@ -160,7 +192,10 @@
                 let html = `<div style="background:#fdfdfd; border:1px solid #ccc; padding:10px; margin-bottom:5px;">
                     <b>🏁 Gara ${h.gara_num} | Vince: ${h.primo.split('-')[1]}</b><br>
                     <ul style="margin:5px 0 0 0; font-size:12px;">`;
-                h.scommesse.forEach(b => { html += `<li>${b.user}: ${b.amount}€ su ${b.dettaglio}</li>`; });
+                h.scommesse.forEach(b => { 
+                    const color = b.esito === "Vinta" ? "green" : "red";
+                    html += `<li>${b.user}: ${b.amount}€ su ${b.dettaglio} - <b style="color:${color};">[${b.esito}]</b></li>`; 
+                });
                 html += `</ul></div>`; contStorico.innerHTML += html;
             });
 
