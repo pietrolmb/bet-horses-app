@@ -23,16 +23,35 @@ def genera_nuova_corsa():
     num = random.randint(8, 12)
     horses = []
     nomi = random.sample([f"{a} {b}" for a in NOMI_A for b in NOMI_B], num)
+    
+    # 1. MATEMATICA CASINÒ: Genera pesi casuali per la forza dei cavalli
+    raw_weights = [random.uniform(10, 100) for _ in range(num)]
+    tot_weight = sum(raw_weights)
+    
+    # 2. Calcola le Probabilità Matematiche REALI (La somma totale è esattamente 1.0, cioè il 100%)
+    p_vittoria = [w / tot_weight for w in raw_weights]
+    
+    # 3. Calcola le Probabilità REALI per l'Ultimo Posto (inversamente proporzionali alla bravura)
+    inv_weights = [1.0 / p for p in p_vittoria]
+    tot_inv = sum(inv_weights)
+    p_ultimo = [iw / tot_inv for iw in inv_weights]
+    
+    # 4. IL VANTAGGIO DEL BANCO (LAVAGNA): Imposto al 18% (RTP del gioco = 82%)
+    # Il casinò abbassa le quote per assicurarsi un guadagno matematico nel lungo periodo
+    house_edge = 1.18
+
     for i in range(num):
-        # Probabilità di vittoria (da 5% a 20%)
-        prob = random.uniform(0.05, 0.20)
-        quota_v = round(1 / (prob * 1.15), 2)
+        # Le quote pagano meno della probabilità reale
+        q_v = max(1.10, round(1 / (p_vittoria[i] * house_edge), 2))
+        q_p = max(1.05, round(q_v / 3.2, 2)) # Il piazzato paga un terzo
+        q_u = max(1.10, round(1 / (p_ultimo[i] * house_edge), 2))
+
         horses.append({
             "id": i + 1, "nome": nomi[i], 
-            "prob": prob, # Salviamo la probabilità per la gara!
-            "quota_v": max(1.20, quota_v),
-            "quota_p": max(1.10, round(quota_v / 3, 2)), 
-            "quota_u": max(1.50, round(quota_v * 0.8, 2)), 
+            "prob_vittoria": p_vittoria[i], # Salvato nel segreto del server per farli correre in base a questo dato
+            "quota_v": q_v,
+            "quota_p": q_p, 
+            "quota_u": q_u, 
             "colore": f"#{random.randint(100,255):02x}{random.randint(100,255):02x}{random.randint(100,255):02x}"
         })
     return horses
@@ -133,18 +152,19 @@ def start_race():
     
     posizioni = {h["id"]: 0 for h in race["horses"]}
     
-    # CORSA PIU' LUNGA E PONDERATA SULLE QUOTE! (Circa 30 secondi)
+    # ANIMAZIONE GARA BASATA SULLE VERE PROBABILITÀ
     for _ in range(250):
         for h in race["horses"]: 
-            # Il passo base è casuale, ma aggiungiamo un bonus legato alla probabilità!
-            passo_base = random.uniform(0.01, 0.045)
-            bonus_quota = h["prob"] * 0.035 
-            posizioni[h["id"]] += (passo_base + bonus_quota)
+            # Il passo base è randomico (la fortuna), ma la spinta forte è data dalla probabilità di vittoria reale!
+            passo_base = random.uniform(0.01, 0.035)
+            spinta_statistica = h["prob_vittoria"] * 0.12 
+            posizioni[h["id"]] += (passo_base + spinta_statistica)
             
         socketio.emit('race_update', posizioni)
-        socketio.sleep(0.12) # Rallenta un po' l'animazione per allungare la gara
+        socketio.sleep(0.12)
         
     classifica = sorted(race["horses"], key=lambda h: posizioni[h["id"]], reverse=True)
+    
     id_primo = classifica[0]["id"]
     id_secondo = classifica[1]["id"]
     id_terzo = classifica[2]["id"]
@@ -170,22 +190,23 @@ def start_race():
     q1 = classifica[0]["quota_v"]
     q2 = classifica[1]["quota_v"]
     q3 = classifica[2]["quota_v"]
+    qu = classifica[-1]["quota_u"]
     
     risultato = {
         "gara_num": len(data["history"]) + 1,
         "primo": f"N°{id_primo} - {classifica[0]['nome']}", "q_primo": q1,
         "secondo": f"N°{id_secondo} - {classifica[1]['nome']}",
         "terzo": f"N°{id_terzo} - {classifica[2]['nome']}", 
-        "ultimo": f"N°{id_ultimo} - {classifica[-1]['nome']}", "q_ultimo": classifica[-1]["quota_u"],
+        "ultimo": f"N°{id_ultimo} - {classifica[-1]['nome']}", "q_ultimo": qu,
         "q_accoppiata": round(q1 * q2, 2),
         "q_trio": round(q1 * q2 * q3, 2),
         "vincitori": vincitori_gara,
-        "scommesse": race["bets"].copy() # Salviamo tutte le scommesse fatte
+        "scommesse": race["bets"].copy() 
     }
     data["history"].append(risultato)
     
     socketio.emit('race_finished')
-    socketio.sleep(6) # Pausa a fine gara
+    socketio.sleep(6) 
     
     race["status"] = "waiting"
     race["horses"] = genera_nuova_corsa()
