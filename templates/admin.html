@@ -23,6 +23,9 @@
         
         .sett-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: #f9f9f9; padding: 15px; border-radius: 5px;}
         .sett-box { background: white; padding: 10px; border: 1px solid #ddd; border-radius: 5px;}
+        
+        .esito-vinta { color: #27ae60; font-weight: bold; background: #eaafef; padding: 2px 5px; border-radius: 3px; }
+        .esito-persa { color: #c0392b; font-weight: bold; background: #fadbd8; padding: 2px 5px; border-radius: 3px; }
     </style>
 </head>
 <body>
@@ -60,7 +63,7 @@
                         
                         <hr style="margin:10px 0;">
                         <b>🎵 Regia YouTube</b> <small>(Fino a = 0 significa no loop)</small><br>
-                        <table style="width:100%; margin-top:5px; border:none;">
+                        <table style="width:100%; margin-top:5px; border:none; background:transparent;">
                             <tr>
                                 <td style="border:none;"><input type="checkbox" id="yt-wait-en"> <b>Attesa</b></td>
                                 <td style="border:none;"><input type="text" id="yt-wait-url" placeholder="ID" style="width:80px;"></td>
@@ -114,7 +117,17 @@
     <script>
         const socket = io();
         let cavalliElements = {};
+        let openAccordions = {}; 
         socket.emit('request_update');
+
+        function toggleRace(id) {
+            const el = document.getElementById('dettagli-gara-' + id);
+            if(el.style.display === 'none' || el.style.display === '') {
+                el.style.display = 'block'; openAccordions[id] = true;
+            } else {
+                el.style.display = 'none'; openAccordions[id] = false;
+            }
+        }
 
         function gestioneSoldi() {
             const user = document.getElementById('nuovo-user').value.trim();
@@ -189,14 +202,22 @@
             const contStorico = document.getElementById('storico-gare-container');
             contStorico.innerHTML = s.history.length === 0 ? "<p>Nessuna gara conclusa.</p>" : "";
             s.history.slice().reverse().forEach(h => {
-                let html = `<div style="background:#fdfdfd; border:1px solid #ccc; padding:10px; margin-bottom:5px;">
-                    <b>🏁 Gara ${h.gara_num} | Vince: ${h.primo.split('-')[1]}</b><br>
-                    <ul style="margin:5px 0 0 0; font-size:12px;">`;
+                const isOpen = openAccordions[h.gara_num] ? "block" : "none";
+                let html = `
+                <div class="race-history-card">
+                    <p class="race-title" onclick="toggleRace(${h.gara_num})">🏁 Gara N° ${h.gara_num} | Vince: ${h.primo.split('-')[1]} ▼</p>
+                    <div id="dettagli-gara-${h.gara_num}" class="race-details" style="display: ${isOpen};">
+                        <p><b>1°</b> ${h.primo} (Q: ${h.q_primo})<br>
+                        <b>Ultimo:</b> ${h.ultimo} (Q: ${h.q_ultimo})</p>
+                        <h4 style="margin-bottom:5px; color:#2980b9;">Scommesse piazzate in questa gara:</h4>
+                        <ul style="margin-top:0; font-size:14px; list-style-type:none; padding-left:0;">`;
+                if(h.scommesse.length === 0) html += `<li>Nessuna scommessa registrata.</li>`;
                 h.scommesse.forEach(b => { 
-                    const color = b.esito === "Vinta" ? "green" : "red";
-                    html += `<li>${b.user}: ${b.amount}€ su ${b.dettaglio} - <b style="color:${color};">[${b.esito}]</b></li>`; 
+                    const label = b.esito === "Vinta" ? `<span class="esito-vinta">[VINTA]</span>` : `<span class="esito-persa">[PERSA]</span>`;
+                    html += `<li style="margin-bottom:5px;">${label} <b>${b.user}</b> -> ${parseFloat(b.amount).toFixed(2)}€ su ${b.dettaglio}</li>`; 
                 });
-                html += `</ul></div>`; contStorico.innerHTML += html;
+                html += `</ul></div></div>`;
+                contStorico.innerHTML += html;
             });
 
             const tbodyScommesse = document.querySelector('#tabella-scommesse tbody');
