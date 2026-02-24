@@ -149,21 +149,22 @@ def start_race():
     
     posizioni = {h["id"]: 0 for h in race["horses"]}
     
-    # LA NUOVA CORSA: Si ferma ESATTAMENTE quando il primo compie 1 giro (2 * Pi Greco)
     traguardo_raggiunto = False
     while not traguardo_raggiunto:
         max_pos = 0
         for h in race["horses"]: 
-            passo_base = random.uniform(0.01, 0.06)
-            spinta = h["prob_vittoria"] * 0.025 
+            # LA NUOVA FISICA: Varianza enorme, la probabilità matematica conta pochissimo nella singola gara
+            passo_base = random.uniform(0.005, 0.085) 
+            spinta = h["prob_vittoria"] * 0.012 
             posizioni[h["id"]] += (passo_base + spinta)
+            
             if posizioni[h["id"]] > max_pos:
                 max_pos = posizioni[h["id"]]
                 
         socketio.emit('race_update', posizioni)
         socketio.sleep(0.12)
         
-        if max_pos >= 2 * math.pi:
+        if max_pos >= 2 * math.pi: # Traguardo ESATTO (1 Giro)
             traguardo_raggiunto = True
             
     classifica = sorted(race["horses"], key=lambda h: posizioni[h["id"]], reverse=True)
@@ -197,8 +198,7 @@ def start_race():
     
     risultato = {
         "gara_num": len(data["history"]) + 1,
-        "primo_id": id_primo,
-        "primo_nome": classifica[0]["nome"],
+        "primo_id": id_primo, "primo_nome": classifica[0]["nome"],
         "primo": f"N°{id_primo} - {classifica[0]['nome']}", "q_primo": q1,
         "secondo": f"N°{id_secondo} - {classifica[1]['nome']}",
         "terzo": f"N°{id_terzo} - {classifica[2]['nome']}", 
@@ -209,7 +209,7 @@ def start_race():
     data["history"].append(risultato)
     
     socketio.emit('race_finished', risultato)
-    socketio.sleep(8) 
+    socketio.sleep(13) # Pausa lunga per permettere alla canzone di finire
     
     race["status"] = "waiting"
     race["horses"] = genera_nuova_corsa()
