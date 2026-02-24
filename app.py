@@ -1,4 +1,5 @@
 import random
+import math
 import eventlet
 eventlet.monkey_patch()
 from flask import Flask, render_template
@@ -13,7 +14,7 @@ data = {
     "admin_stats": {"totale_incassato": 0.0, "totale_pagato": 0.0, "bilancio": 0.0},
     "current_race": {"status": "waiting", "horses": [], "bets": [], "timer": 0},
     "history": [],
-    "settings": {"auto_timer": True, "max_bet": 0} # 0 significa Nessun Limite
+    "settings": {"auto_timer": True, "max_bet": 0, "timer_duration": 60}
 }
 
 NOMI_A = ["Western", "Più Forte", "Lord", "Stud", "National", "Golden", "Pocket", "Diamond", "Wild", "Cowboy"]
@@ -32,7 +33,7 @@ def genera_nuova_corsa():
     tot_inv = sum(inv_weights)
     p_ultimo = [iw / tot_inv for iw in inv_weights]
     
-    house_edge = 1.18 # Margine del banco al 18%
+    house_edge = 1.18 
 
     for i in range(num):
         q_v = max(1.10, round(1 / (p_vittoria[i] * house_edge), 2))
@@ -76,6 +77,7 @@ def handle_wallet(req):
 def update_settings(req):
     if 'max_bet' in req: data["settings"]["max_bet"] = float(req['max_bet'])
     if 'auto_timer' in req: data["settings"]["auto_timer"] = req['auto_timer']
+    if 'timer_duration' in req: data["settings"]["timer_duration"] = int(req['timer_duration'])
     socketio.emit('update_data', data)
 
 @socketio.on('admin_force_start')
@@ -106,7 +108,6 @@ def handle_bet(bet_data):
     importo = float(bet_data['amount'])
     tipo = bet_data['type']
     
-    # Controllo limite puntata massima
     if data["settings"]["max_bet"] > 0 and importo > data["settings"]["max_bet"]:
         emit('login_error', f"Puntata massima consentita: {data['settings']['max_bet']}€")
         return
@@ -126,7 +127,7 @@ def handle_bet(bet_data):
         })
         
         if data["settings"]["auto_timer"]:
-            race["timer"] = 60
+            race["timer"] = data["settings"]["timer_duration"]
             if race["status"] == "waiting":
                 race["status"] = "countdown"
                 socketio.start_background_task(run_countdown)
@@ -148,18 +149,23 @@ def start_race():
     
     posizioni = {h["id"]: 0 for h in race["horses"]}
     
-    # LA NUOVA FISICA CAOTICA: Varianza enorme, spinta statistica minima.
-    for _ in range(250):
+    # LA NUOVA CORSA: Si ferma ESATTAMENTE quando il primo compie 1 giro (2 * Pi Greco)
+    traguardo_raggiunto = False
+    while not traguardo_raggiunto:
+        max_pos = 0
         for h in race["horses"]: 
-            # Passo base fortemente variabile (la vera fortuna della gara)
-            passo_base = random.uniform(0.01, 0.10)
-            # Spinta leggerissima per il banco (fa la differenza su 1000 corse, non su 1)
-            spinta_statistica = h["prob_vittoria"] * 0.018 
-            posizioni[h["id"]] += (passo_base + spinta_statistica)
-            
+            passo_base = random.uniform(0.01, 0.06)
+            spinta = h["prob_vittoria"] * 0.025 
+            posizioni[h["id"]] += (passo_base + spinta)
+            if posizioni[h["id"]] > max_pos:
+                max_pos = posizioni[h["id"]]
+                
         socketio.emit('race_update', posizioni)
         socketio.sleep(0.12)
         
+        if max_pos >= 2 * math.pi:
+            traguardo_raggiunto = True
+            
     classifica = sorted(race["horses"], key=lambda h: posizioni[h["id"]], reverse=True)
     
     id_primo = classifica[0]["id"]
@@ -191,6 +197,8 @@ def start_race():
     
     risultato = {
         "gara_num": len(data["history"]) + 1,
+        "primo_id": id_primo,
+        "primo_nome": classifica[0]["nome"],
         "primo": f"N°{id_primo} - {classifica[0]['nome']}", "q_primo": q1,
         "secondo": f"N°{id_secondo} - {classifica[1]['nome']}",
         "terzo": f"N°{id_terzo} - {classifica[2]['nome']}", 
@@ -200,8 +208,8 @@ def start_race():
     }
     data["history"].append(risultato)
     
-    socketio.emit('race_finished')
-    socketio.sleep(6) 
+    socketio.emit('race_finished', risultato)
+    socketio.sleep(8) 
     
     race["status"] = "waiting"
     race["horses"] = genera_nuova_corsa()
