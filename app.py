@@ -37,9 +37,8 @@ def genera_nuova_corsa():
     horses = []
     nomi = random.sample([f"{a} {b}" for a in NOMI_A for b in NOMI_B], num)
     
-    # Crea pesi casuali ma ben distribuiti
-    weights = [random.uniform(20, 100) for _ in range(num)]
-    weights[0] = random.uniform(80, 130) # Assicura almeno un buon favorito
+    # Crea un favorito e degli sfidanti
+    weights = [random.uniform(70, 150)] + [random.uniform(10, 60) for _ in range(num - 1)]
     random.shuffle(weights) 
     
     tot_weight = sum(weights)
@@ -49,12 +48,13 @@ def genera_nuova_corsa():
     tot_inv = sum(inv_weights)
     p_ultimo = [iw / tot_inv for iw in inv_weights]
     
-    house_edge = 1.25 # Margine banco del 25%
+    # LAVAGNA AL 35% (Garantisce un profitto matematico enorme al banco nel lungo periodo)
+    house_edge = 1.35 
 
     for i in range(num):
-        q_v = max(1.10, round(1 / (p_vittoria[i] * house_edge), 2))
+        q_v = max(1.05, round(1 / (p_vittoria[i] * house_edge), 2))
         q_p = max(1.05, round(q_v / 3.0, 2))
-        q_u = max(1.10, round(1 / (p_ultimo[i] * house_edge), 2))
+        q_u = max(1.05, round(1 / (p_ultimo[i] * house_edge), 2))
 
         horses.append({
             "id": i + 1, "nome": nomi[i], "prob_vittoria": p_vittoria[i], 
@@ -176,47 +176,87 @@ def run_countdown():
 def start_race():
     race = data["current_race"]
     race["status"] = "racing"
-    socketio.emit('update_data', data) # Chiusura immediata banner
+    socketio.emit('update_data', data) 
     socketio.emit('race_start')
     
-    posizioni = {h["id"]: 0.0 for h in race["horses"]}
-    classifica_finale = []
-    arrivati = set()
+    # ==========================================
+    # IL NUOVO MOTORE A PRE-DETERMINAZIONE (CASINO TRUTH)
+    # ==========================================
     
-    # MOTORE ADRENALINICO: Ogni cavallo ha uno slancio che cambia continuamente
-    momentum = {h["id"]: random.uniform(0.8, 1.2) for h in race["horses"]}
-    step_count = 0
-
-    # Continua finché l'ULTIMO cavallo non ha tagliato il traguardo
-    while len(classifica_finale) < len(race["horses"]):
-        step_count += 1
+    # 1. Estrae l'ordine di arrivo matematico ESATTO usando le probabilità reali
+    cavalli_rimasti = race["horses"].copy()
+    ordine_arrivo = []
+    
+    while cavalli_rimasti:
+        # Ricalcola i pesi tra i cavalli non ancora piazzati
+        pesi = [h["prob_vittoria"] for h in cavalli_rimasti]
+        totale_pesi = sum(pesi)
+        r = random.uniform(0, totale_pesi)
+        cumulato = 0
+        for h in cavalli_rimasti:
+            cumulato += h["prob_vittoria"]
+            if r <= cumulato:
+                ordine_arrivo.append(h)
+                cavalli_rimasti.remove(h)
+                break
+                
+    # 2. Crea un copione di animazione (Film della gara)
+    # Il vincitore arriverà a circa 220 step (~26 secondi)
+    # L'ultimo arriverà a circa 300 step (~36 secondi)
+    target_steps = {}
+    base_step = 220
+    for i, h in enumerate(ordine_arrivo):
+        target_steps[h["id"]] = base_step + (i * random.randint(10, 20))
         
-        # Orizzonte Sorpassi: ogni ~1.5 secondi cambiano le velocità
-        if step_count % 12 == 0:
-            for h in race["horses"]: 
-                momentum[h["id"]] = random.uniform(0.7, 1.3)
+    max_steps = max(target_steps.values()) + 10
+    
+    # Genera le velocità per farli arrivare esattamente nel momento prestabilito
+    # ma inserendo "scatti" e "frenate" nel mezzo per dare spettacolo
+    profili_corsa = {}
+    for h in race["horses"]:
+        ts = target_steps[h["id"]]
+        passi_grezzi = [random.uniform(0.1, 1.0) for _ in range(ts)]
+        
+        # Momentum: simuliamo stanchezza e riprese di fiato
+        momentum = 1.0
+        for j in range(ts):
+            if j % 20 == 0: momentum = random.uniform(0.4, 1.8)
+            passi_grezzi[j] *= momentum
+            
+        totale_grezzo = sum(passi_grezzi)
+        scala = (2 * math.pi) / totale_grezzo # Moltiplicatore per fare esattamente 1 giro
+        
+        profili_corsa[h["id"]] = [p * scala for p in passi_grezzi]
 
+    # 3. Trasmette l'animazione ai client
+    posizioni_attuali = {h["id"]: 0.0 for h in race["horses"]}
+    
+    for step in range(max_steps):
+        frame = {}
+        tutti_arrivati = True
+        
         for h in race["horses"]:
-            if h["id"] not in arrivati:
-                # La probabilità aiuta, ma l'rng e il momentum dominano per garantire spettacolo
-                edge = h["prob_vittoria"] * 0.003
-                step_dist = random.uniform(0.015, 0.030) * momentum[h["id"]] + edge
-                
-                posizioni[h["id"]] += step_dist
-                
-                # Se taglia il traguardo (1 Giro esatto = 2 * Pi Greco)
-                if posizioni[h["id"]] >= 2 * math.pi:
-                    posizioni[h["id"]] = 2 * math.pi # Lo blocca visivamente sulla linea
-                    arrivati.add(h["id"])
-                    classifica_finale.append(h)
-                    
-        socketio.emit('race_update', posizioni)
+            if step < len(profili_corsa[h["id"]]):
+                posizioni_attuali[h["id"]] += profili_corsa[h["id"]][step]
+                tutti_arrivati = False
+            
+            # Blocca il cavallo sulla linea se ha finito i suoi step
+            frame[h["id"]] = min(posizioni_attuali[h["id"]], 2 * math.pi)
+            
+        socketio.emit('race_update', frame)
         socketio.sleep(0.12)
+        
+        if tutti_arrivati:
+            break
 
-    id_1 = classifica_finale[0]["id"]
-    id_2 = classifica_finale[1]["id"]
-    id_3 = classifica_finale[2]["id"]
-    id_ult = classifica_finale[-1]["id"]
+    # ==========================================
+    # CALCOLO VINCITE
+    # ==========================================
+    
+    id_1 = ordine_arrivo[0]["id"]
+    id_2 = ordine_arrivo[1]["id"]
+    id_3 = ordine_arrivo[2]["id"]
+    id_ult = ordine_arrivo[-1]["id"]
     
     vincitori_gara = []
     totale_pagato_gara = 0.0
@@ -249,11 +289,11 @@ def start_race():
     
     risultato = {
         "gara_num": len(data["history"]) + 1,
-        "primo_id": id_1, "primo_nome": classifica_finale[0]["nome"],
-        "primo": f"N°{id_1} - {classifica_finale[0]['nome']}", "q_primo": classifica_finale[0]["quota_v"],
-        "secondo": f"N°{id_2} - {classifica_finale[1]['nome']}",
-        "terzo": f"N°{id_3} - {classifica_finale[2]['nome']}", 
-        "ultimo": f"N°{id_ult} - {classifica_finale[-1]['nome']}", "q_ultimo": classifica_finale[-1]["quota_u"],
+        "primo_id": id_1, "primo_nome": ordine_arrivo[0]["nome"],
+        "primo": f"N°{id_1} - {ordine_arrivo[0]['nome']}", "q_primo": ordine_arrivo[0]["quota_v"],
+        "secondo": f"N°{id_2} - {ordine_arrivo[1]['nome']}",
+        "terzo": f"N°{id_3} - {ordine_arrivo[2]['nome']}", 
+        "ultimo": f"N°{id_ult} - {ordine_arrivo[-1]['nome']}", "q_ultimo": ordine_arrivo[-1]["quota_u"],
         "vincitori": vincitori_gara, "scommesse": race["bets"].copy() 
     }
     data["history"].append(risultato)
