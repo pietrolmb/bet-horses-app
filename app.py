@@ -10,10 +10,10 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 data = {
     "users": {},
     "online_users": [],
-    "admin_stats": {"totale_incassato": 0, "totale_pagato": 0, "bilancio": 0},
+    "admin_stats": {"totale_incassato": 0.0, "totale_pagato": 0.0, "bilancio": 0.0},
     "current_race": {"status": "waiting", "horses": [], "bets": [], "timer": 0},
     "history": [],
-    "settings": {"auto_timer": True}
+    "settings": {"auto_timer": True, "max_bet": 0} # 0 significa Nessun Limite
 }
 
 NOMI_A = ["Western", "Più Forte", "Lord", "Stud", "National", "Golden", "Pocket", "Diamond", "Wild", "Cowboy"]
@@ -24,34 +24,25 @@ def genera_nuova_corsa():
     horses = []
     nomi = random.sample([f"{a} {b}" for a in NOMI_A for b in NOMI_B], num)
     
-    # 1. MATEMATICA CASINÒ: Genera pesi casuali per la forza dei cavalli
     raw_weights = [random.uniform(10, 100) for _ in range(num)]
     tot_weight = sum(raw_weights)
-    
-    # 2. Calcola le Probabilità Matematiche REALI (La somma totale è esattamente 1.0, cioè il 100%)
     p_vittoria = [w / tot_weight for w in raw_weights]
     
-    # 3. Calcola le Probabilità REALI per l'Ultimo Posto (inversamente proporzionali alla bravura)
     inv_weights = [1.0 / p for p in p_vittoria]
     tot_inv = sum(inv_weights)
     p_ultimo = [iw / tot_inv for iw in inv_weights]
     
-    # 4. IL VANTAGGIO DEL BANCO (LAVAGNA): Imposto al 18% (RTP del gioco = 82%)
-    # Il casinò abbassa le quote per assicurarsi un guadagno matematico nel lungo periodo
-    house_edge = 1.18
+    house_edge = 1.18 # Margine del banco al 18%
 
     for i in range(num):
-        # Le quote pagano meno della probabilità reale
         q_v = max(1.10, round(1 / (p_vittoria[i] * house_edge), 2))
-        q_p = max(1.05, round(q_v / 3.2, 2)) # Il piazzato paga un terzo
+        q_p = max(1.05, round(q_v / 3.2, 2))
         q_u = max(1.10, round(1 / (p_ultimo[i] * house_edge), 2))
 
         horses.append({
             "id": i + 1, "nome": nomi[i], 
-            "prob_vittoria": p_vittoria[i], # Salvato nel segreto del server per farli correre in base a questo dato
-            "quota_v": q_v,
-            "quota_p": q_p, 
-            "quota_u": q_u, 
+            "prob_vittoria": p_vittoria[i], 
+            "quota_v": q_v, "quota_p": q_p, "quota_u": q_u, 
             "colore": f"#{random.randint(100,255):02x}{random.randint(100,255):02x}{random.randint(100,255):02x}"
         })
     return horses
@@ -71,19 +62,20 @@ def send_update(): emit('update_data', data)
 def handle_wallet(req):
     user = req['user'].strip()
     password = req.get('password', '').strip()
-    amount = req['amount']
+    amount = float(req['amount'])
     
     if user not in data["users"]: 
-        data["users"][user] = {"wallet": 0, "password": password if password else "1234"}
+        data["users"][user] = {"wallet": 0.0, "password": password if password else "1234"}
     else:
         if password != "": data["users"][user]["password"] = password
         
-    data["users"][user]["wallet"] += amount
+    data["users"][user]["wallet"] = round(data["users"][user]["wallet"] + amount, 2)
     socketio.emit('update_data', data)
 
-@socketio.on('admin_toggle_timer')
-def toggle_timer():
-    data["settings"]["auto_timer"] = not data["settings"]["auto_timer"]
+@socketio.on('admin_update_settings')
+def update_settings(req):
+    if 'max_bet' in req: data["settings"]["max_bet"] = float(req['max_bet'])
+    if 'auto_timer' in req: data["settings"]["auto_timer"] = req['auto_timer']
     socketio.emit('update_data', data)
 
 @socketio.on('admin_force_start')
@@ -100,24 +92,28 @@ def force_start():
 def login_check(req):
     user = req.get('user', '').strip()
     pwd = req.get('password', '').strip()
-    
     if user in data["users"] and data["users"][user]["password"] == pwd:
         if user not in data["online_users"]: data["online_users"].append(user)
         emit('login_success', {"user": user})
         socketio.emit('update_data', data)
     else:
-        emit('login_error', "Attenzione: Nome utente o Password errati!")
+        emit('login_error', "Nome utente o Password errati!")
 
 @socketio.on('place_bet')
 def handle_bet(bet_data):
     race = data["current_race"]
     user = bet_data['user']
-    importo = bet_data['amount']
+    importo = float(bet_data['amount'])
     tipo = bet_data['type']
     
+    # Controllo limite puntata massima
+    if data["settings"]["max_bet"] > 0 and importo > data["settings"]["max_bet"]:
+        emit('login_error', f"Puntata massima consentita: {data['settings']['max_bet']}€")
+        return
+    
     if user in data["users"] and data["users"][user]["wallet"] >= importo and race["status"] in ["waiting", "countdown"]:
-        data["users"][user]["wallet"] -= importo
-        data["admin_stats"]["totale_incassato"] += importo
+        data["users"][user]["wallet"] = round(data["users"][user]["wallet"] - importo, 2)
+        data["admin_stats"]["totale_incassato"] = round(data["admin_stats"]["totale_incassato"] + importo, 2)
         
         cavallo = next(h for h in race["horses"] if h["id"] == bet_data['horse_id'])
         if tipo == "Piazzato": quota = cavallo["quota_p"]
@@ -152,12 +148,13 @@ def start_race():
     
     posizioni = {h["id"]: 0 for h in race["horses"]}
     
-    # ANIMAZIONE GARA BASATA SULLE VERE PROBABILITÀ
+    # LA NUOVA FISICA CAOTICA: Varianza enorme, spinta statistica minima.
     for _ in range(250):
         for h in race["horses"]: 
-            # Il passo base è randomico (la fortuna), ma la spinta forte è data dalla probabilità di vittoria reale!
-            passo_base = random.uniform(0.01, 0.035)
-            spinta_statistica = h["prob_vittoria"] * 0.12 
+            # Passo base fortemente variabile (la vera fortuna della gara)
+            passo_base = random.uniform(0.01, 0.10)
+            # Spinta leggerissima per il banco (fa la differenza su 1000 corse, non su 1)
+            spinta_statistica = h["prob_vittoria"] * 0.018 
             posizioni[h["id"]] += (passo_base + spinta_statistica)
             
         socketio.emit('race_update', posizioni)
@@ -171,7 +168,7 @@ def start_race():
     id_ultimo = classifica[-1]["id"]
     
     vincitori_gara = []
-    totale_pagato_gara = 0
+    totale_pagato_gara = 0.0
     for bet in race["bets"]:
         vinto = False
         if bet["type"] == "Vincente" and bet["horse_id"] == id_primo: vinto = True
@@ -180,12 +177,12 @@ def start_race():
         
         if vinto:
             vincita = round(bet["amount"] * bet["quota"], 2)
-            data["users"][bet["user"]]["wallet"] += vincita
+            data["users"][bet["user"]]["wallet"] = round(data["users"][bet["user"]]["wallet"] + vincita, 2)
             totale_pagato_gara += vincita
             vincitori_gara.append({"user": bet["user"], "vincita": vincita, "tipo": bet["type"]})
             
-    data["admin_stats"]["totale_pagato"] += totale_pagato_gara
-    data["admin_stats"]["bilancio"] = data["admin_stats"]["totale_incassato"] - data["admin_stats"]["totale_pagato"]
+    data["admin_stats"]["totale_pagato"] = round(data["admin_stats"]["totale_pagato"] + totale_pagato_gara, 2)
+    data["admin_stats"]["bilancio"] = round(data["admin_stats"]["totale_incassato"] - data["admin_stats"]["totale_pagato"], 2)
     
     q1 = classifica[0]["quota_v"]
     q2 = classifica[1]["quota_v"]
@@ -198,10 +195,8 @@ def start_race():
         "secondo": f"N°{id_secondo} - {classifica[1]['nome']}",
         "terzo": f"N°{id_terzo} - {classifica[2]['nome']}", 
         "ultimo": f"N°{id_ultimo} - {classifica[-1]['nome']}", "q_ultimo": qu,
-        "q_accoppiata": round(q1 * q2, 2),
-        "q_trio": round(q1 * q2 * q3, 2),
-        "vincitori": vincitori_gara,
-        "scommesse": race["bets"].copy() 
+        "q_accoppiata": round(q1 * q2, 2), "q_trio": round(q1 * q2 * q3, 2),
+        "vincitori": vincitori_gara, "scommesse": race["bets"].copy() 
     }
     data["history"].append(risultato)
     
