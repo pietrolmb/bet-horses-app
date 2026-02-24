@@ -16,14 +16,14 @@
         th, td { padding: 8px; border: 1px solid #ddd; text-align: center; font-size:14px;}
         th { background: #34495e; color: white; }
         
-        /* Mini Pista Admin Ricalcolata */
+        /* Pista Admin con Matematica Corretta */
         #pista-container { 
             width: 400px; height: 200px; background: #2d5a3c; border-radius: 125px; 
-            position: relative; border: 35px solid #8B4513; margin: auto; overflow:hidden; zoom: 0.8;
-            box-sizing: border-box;
+            position: relative; border: 35px solid #8B4513; margin: auto; overflow:visible; zoom: 0.9;
+            box-sizing: border-box; z-index: 1;
         }
         .traguardo { position: absolute; bottom: -35px; left: 50%; width: 4px; height: 35px; background: red; transform: translateX(-50%);}
-        .cavallo { width: 14px; height: 14px; border-radius: 50%; position: absolute; border: 1px solid #fff; font-size: 8px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; transition: all 0.1s linear;}
+        .cavallo { width: 14px; height: 14px; border-radius: 50%; position: absolute; border: 1px solid #fff; font-size: 8px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 20;}
     </style>
 </head>
 <body>
@@ -42,7 +42,7 @@
                 <button class="btn-toggle" id="btn-switch-timer" onclick="toggleTimer()">MODALITA': TIMER AUTOMATICO</button>
                 <button class="btn-forza" onclick="forzaPartenza()">FORZA PARTENZA ORA</button>
                 
-                <div style="margin-top:20px;">
+                <div style="margin-top:30px; margin-bottom:20px;">
                     <div id="pista-container"><div class="traguardo"></div></div>
                 </div>
             </div>
@@ -60,7 +60,8 @@
             <h3>📊 Storico Gara & Scommesse In Corso</h3>
             
             <div style="background:#ecf0f1; padding:10px; border-radius:5px; margin-bottom:15px;">
-                <h4 style="margin:0 0 5px 0;">Vincitori Ultima Gara:</h4>
+                <h4 style="margin:0 0 5px 0;">Resoconto Ultima Gara:</h4>
+                <div id="quote-gara" style="font-size: 14px; margin-bottom: 10px;">In attesa...</div>
                 <ul id="lista-vincitori" style="margin:0; color:#27ae60; font-weight:bold;">Nessuna gara giocata.</ul>
             </div>
 
@@ -108,15 +109,18 @@
             
             const btnToggle = document.getElementById('btn-switch-timer');
             if(s.settings.auto_timer) {
-                btnToggle.innerText = "MODALITA': TIMER 60s ATTIVO (Clicca per Manuale)";
-                btnToggle.style.background = "#2ecc71";
+                btnToggle.innerText = "MODALITA': TIMER 60s ATTIVO"; btnToggle.style.background = "#2ecc71";
             } else {
-                btnToggle.innerText = "MODALITA': MANUALE (Clicca per Timer Auto)";
-                btnToggle.style.background = "#e67e22";
+                btnToggle.innerText = "MODALITA': MANUALE"; btnToggle.style.background = "#e67e22";
             }
 
             if(s.history.length > 0) {
                 const ultima = s.history[s.history.length - 1];
+                document.getElementById('quote-gara').innerHTML = `
+                    <span style="color:#d35400;">1°</span> ${ultima.primo} (Q: ${ultima.q_primo}) | 
+                    <span style="color:#d35400;">Ultimo</span> ${ultima.ultimo} (Q: ${ultima.q_ultimo}) <br>
+                    <b>Accoppiata Combinata:</b> ${ultima.q_accoppiata} | <b>Trio Secco:</b> ${ultima.q_trio}
+                `;
                 const ul = document.getElementById('lista-vincitori');
                 ul.innerHTML = ultima.vincitori.length === 0 ? "<li>Nessun giocatore ha vinto.</li>" : "";
                 ultima.vincitori.forEach(v => ul.innerHTML += `<li>${v.user} vince ${v.vincita}€ (${v.tipo})</li>`);
@@ -124,7 +128,7 @@
             
             const tbodyScommesse = document.querySelector('#tabella-scommesse tbody');
             tbodyScommesse.innerHTML = r.bets.length === 0 ? '<tr><td colspan="5">Nessuna scommessa in questa gara.</td></tr>' : "";
-            r.bets.forEach(b => tbodyScommesse.innerHTML += `<tr><td><b>${b.user}</b></td><td>${b.horse_nome}</td><td>${b.type}</td><td style="color:green;">${b.amount} €</td><td>${b.quota}</td></tr>`);
+            r.bets.forEach(b => tbodyScommesse.innerHTML += `<tr><td><b>${b.user}</b></td><td>N°${b.horse_id} - ${b.horse_nome}</td><td>${b.type}</td><td style="color:green;">${b.amount} €</td><td>${b.quota}</td></tr>`);
 
             const tbodyUtenti = document.querySelector('#tabella-utenti tbody');
             tbodyUtenti.innerHTML = Object.keys(s.users).length === 0 ? '<tr><td colspan="3">Nessun utente creato.</td></tr>' : "";
@@ -145,10 +149,12 @@
                     pista.appendChild(d);
                     cavalliElements[h.id] = d;
                     
-                    const laneX = 172 + (index * 1.8); 
-                    const laneY = 72 + (index * 1.8);
-                    const startX = 200 + laneX * Math.cos(Math.PI / 2);
-                    const startY = 100 + laneY * Math.sin(Math.PI / 2);
+                    const centerX = 165; 
+                    const centerY = 65; 
+                    const laneX = 180 - (index * 2.5); 
+                    const laneY = 80 - (index * 2.5);
+                    const startX = centerX + laneX * Math.cos(Math.PI / 2);
+                    const startY = centerY + laneY * Math.sin(Math.PI / 2);
                     d.style.left = (startX - 7) + 'px'; d.style.top = (startY - 7) + 'px';
                 }
             });
@@ -157,10 +163,12 @@
         socket.on('race_update', (pos) => {
             let index = 0;
             Object.keys(pos).forEach(id => {
-                const laneX = 172 + (index * 1.8);
-                const laneY = 72 + (index * 1.8);
-                const x = 200 + laneX * Math.cos(pos[id] + Math.PI / 2);
-                const y = 100 + laneY * Math.sin(pos[id] + Math.PI / 2);
+                const centerX = 165; 
+                const centerY = 65; 
+                const laneX = 180 - (index * 2.5);
+                const laneY = 80 - (index * 2.5);
+                const x = centerX + laneX * Math.cos(pos[id] + Math.PI / 2);
+                const y = centerY + laneY * Math.sin(pos[id] + Math.PI / 2);
                 if(cavalliElements[id]) { cavalliElements[id].style.left = (x - 7) +'px'; cavalliElements[id].style.top = (y - 7) +'px'; }
                 index++;
             });
