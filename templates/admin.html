@@ -10,6 +10,8 @@
         .stat-box { flex: 1; padding: 20px; border-radius: 8px; text-align: center; color: white; font-size: 18px; font-weight: bold;}
         input { padding: 8px; font-size: 14px; border: 1px solid #bdc3c7; border-radius: 4px; margin-right: 5px;}
         button { padding: 10px 20px; font-size: 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;}
+        .btn-forza { background: #e74c3c; width: 100%; font-size: 18px; padding: 10px; margin-top: 5px; border-radius: 8px;}
+        .btn-toggle { background: #f39c12; width: 100%; font-size: 18px; padding: 10px; margin-bottom: 10px; border-radius: 8px;}
         table { width: 100%; border-collapse: collapse; margin-top: 15px; background: white;}
         th, td { padding: 8px; border: 1px solid #ddd; text-align: left; font-size:13px;}
         th { background: #34495e; color: white; }
@@ -19,7 +21,7 @@
         .traguardo { position: absolute; bottom: 0; left: 50%; width: 4px; height: 45px; background: red; transform: translateX(-50%);}
         .cavallo { width: 14px; height: 14px; border-radius: 50%; position: absolute; border: 1px solid #fff; font-size: 8px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 20; transition: all 0.12s linear;}
         
-        .sett-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f9f9f9; padding: 15px; border-radius: 5px;}
+        .sett-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; background: #f9f9f9; padding: 15px; border-radius: 5px;}
         .sett-box { background: white; padding: 10px; border: 1px solid #ddd; border-radius: 5px;}
     </style>
 </head>
@@ -36,7 +38,7 @@
         <div style="flex: 1;">
             
             <div class="card" style="border-left: 5px solid #3498db;">
-                <h3>➕ Gestione Utenti (Ricarica/Crea)</h3>
+                <h3>➕ Gestione Utenti</h3>
                 <input type="text" id="nuovo-user" placeholder="Utente" style="width: 25%;">
                 <input type="text" id="nuova-pass" placeholder="Password" style="width: 25%;">
                 <input type="number" id="importo" placeholder="Euro" style="width: 15%;">
@@ -44,27 +46,26 @@
             </div>
 
             <div class="card" style="border-left: 5px solid #e74c3c;">
-                <h3>⚙️ Regia e Impostazioni</h3>
+                <h3>⚙️ Regia e Limiti Puntate</h3>
                 <button id="btn-switch-timer" onclick="toggleTimer()" style="width:100%; margin-bottom:15px;">TIMER AUTOMATICO</button>
                 
                 <div class="sett-grid">
-                    <div class="sett-box">
-                        <b>Max Puntata (€):</b><br><input type="number" id="set-max-bet" style="width:100%;">
-                    </div>
-                    <div class="sett-box">
-                        <b>Timer Gara (Sec):</b><br><input type="number" id="set-timer-dur" style="width:100%;">
-                    </div>
-                    <div class="sett-box" style="grid-column: span 2;">
+                    <div class="sett-box"><b>Max Singola (€)</b><br><input type="number" id="set-max-s" style="width:100%;"></div>
+                    <div class="sett-box"><b>Max Accoppiata</b><br><input type="number" id="set-max-a" style="width:100%;"></div>
+                    <div class="sett-box"><b>Max Trio (€)</b><br><input type="number" id="set-max-t" style="width:100%;"></div>
+                    
+                    <div class="sett-box" style="grid-column: span 3;">
+                        <b>Timer Gara (Sec):</b> <input type="number" id="set-timer-dur" style="width:80px;">
+                        <hr style="margin:10px 0;">
                         <b>🎵 Regia YouTube (Inserisci gli ID dei video)</b><br>
-                        <small>Es: nel link youtube.com/watch?v=<b>E3m-XH1Kij0</b>, l'ID è la parte in grassetto.</small>
-                        <table style="margin-top:5px;">
-                            <tr><td>Fase <b>Attesa</b></td><td><input type="text" id="yt-wait-url" placeholder="ID Video"></td><td>Da: <input type="number" id="yt-wait-start" style="width:40px;">s</td></tr>
-                            <tr><td>Fase <b>Gara</b></td><td><input type="text" id="yt-race-url" placeholder="ID Video"></td><td>Da: <input type="number" id="yt-race-start" style="width:40px;">s</td></tr>
-                            <tr><td>Fase <b>Vittoria</b></td><td><input type="text" id="yt-win-url" placeholder="ID Video"></td><td>Da: <input type="number" id="yt-win-start" style="width:40px;">s</td></tr>
+                        <table style="width:100%; margin-top:5px; border:none;">
+                            <tr><td style="border:none;"><b>Attesa</b></td><td style="border:none;"><input type="text" id="yt-wait-url" placeholder="ID"></td><td style="border:none;">Da: <input type="number" id="yt-wait-start" style="width:40px;">s</td></tr>
+                            <tr><td style="border:none;"><b>Gara</b></td><td style="border:none;"><input type="text" id="yt-race-url" placeholder="ID"></td><td style="border:none;">Da: <input type="number" id="yt-race-start" style="width:40px;">s</td></tr>
+                            <tr><td style="border:none;"><b>Vittoria</b></td><td style="border:none;"><input type="text" id="yt-win-url" placeholder="ID"></td><td style="border:none;">Da: <input type="number" id="yt-win-start" style="width:40px;">s</td></tr>
                         </table>
                     </div>
                 </div>
-                <button onclick="salvaImpostazioni()" style="width:100%; margin-top:10px; background:#2ecc71;">Salva Impostazioni Regia</button>
+                <button onclick="salvaImpostazioni()" style="width:100%; margin-top:10px; background:#2ecc71;">Salva Impostazioni e Limiti</button>
                 
                 <button onclick="forzaPartenza()" style="width:100%; margin-top:10px; background:#c0392b;">🚀 FORZA PARTENZA ORA</button>
                 <div id="pista-wrapper"><div id="pista-bg"></div><div class="traguardo"></div></div>
@@ -115,7 +116,9 @@
             const extractID = (val) => { const m = val.match(/(?:v=|youtu\.be\/)([^&]+)/); return m ? m[1] : val; };
             
             socket.emit('admin_update_settings', {
-                max_bet: parseFloat(document.getElementById('set-max-bet').value)||0,
+                max_bet_singola: parseFloat(document.getElementById('set-max-s').value)||0,
+                max_bet_accoppiata: parseFloat(document.getElementById('set-max-a').value)||0,
+                max_bet_trio: parseFloat(document.getElementById('set-max-t').value)||0,
                 timer_duration: parseInt(document.getElementById('set-timer-dur').value)||60,
                 yt_wait_url: extractID(document.getElementById('yt-wait-url').value),
                 yt_wait_start: parseInt(document.getElementById('yt-wait-start').value)||0,
@@ -136,7 +139,9 @@
             document.getElementById('pag').innerText = parseFloat(s.admin_stats.totale_pagato).toFixed(2);
             document.getElementById('util').innerText = parseFloat(s.admin_stats.bilancio).toFixed(2);
             
-            document.getElementById('set-max-bet').value = s.settings.max_bet;
+            document.getElementById('set-max-s').value = s.settings.max_bet_singola;
+            document.getElementById('set-max-a').value = s.settings.max_bet_accoppiata;
+            document.getElementById('set-max-t').value = s.settings.max_bet_trio;
             document.getElementById('set-timer-dur').value = s.settings.timer_duration;
             document.getElementById('yt-wait-url').value = s.settings.yt_wait_url;
             document.getElementById('yt-wait-start').value = s.settings.yt_wait_start;
@@ -154,7 +159,7 @@
             s.history.slice().reverse().forEach(h => {
                 let html = `<div style="background:#fdfdfd; border:1px solid #ccc; padding:10px; margin-bottom:5px;">
                     <b>🏁 Gara ${h.gara_num} | Vince: ${h.primo.split('-')[1]}</b><br>
-                    <small>Accoppiata: ${h.q_accoppiata} | Trio: ${h.q_trio}</small><ul style="margin:5px 0 0 0; font-size:12px;">`;
+                    <ul style="margin:5px 0 0 0; font-size:12px;">`;
                 h.scommesse.forEach(b => { html += `<li>${b.user}: ${b.amount}€ su ${b.dettaglio}</li>`; });
                 html += `</ul></div>`; contStorico.innerHTML += html;
             });
@@ -167,7 +172,7 @@
             tbodyUtenti.innerHTML = Object.keys(s.users).length === 0 ? '<tr><td colspan="6">Nessun utente.</td></tr>' : "";
             for (const [nome, d] of Object.entries(s.users)) {
                 const onl = s.online_users.includes(nome) ? "🟢" : "⚪";
-                tbodyUtenti.innerHTML += `<tr><td><b>${nome}</b></td><td>${onl}</td><td><b>${d.wallet.toFixed(2)}€</b></td><td>${d.tot_dep.toFixed(2)}€</td><td>${d.tot_vin.toFixed(2)}€</td><td style="color:red;">${d.tot_per.toFixed(2)}€</td></tr>`;
+                tbodyUtenti.innerHTML += `<tr><td><b>${nome}</b></td><td>${onl}</td><td><b>${d.wallet.toFixed(2)}€</b></td><td>${d.tot_dep.toFixed(2)}€</td><td style="color:green;">${d.tot_vin.toFixed(2)}€</td><td style="color:red;">${d.tot_per.toFixed(2)}€</td></tr>`;
             }
 
             const pistaWrapper = document.getElementById('pista-wrapper');
@@ -180,7 +185,6 @@
                     const d = document.createElement('div'); d.className = 'cavallo'; d.style.backgroundColor = h.colore; d.innerText = h.id;
                     pistaWrapper.appendChild(d); cavalliElements[h.id] = d;
                     
-                    // Ricalcolo esatto della metà pagina utente (senza usare zoom CSS!)
                     const centerX = 225; const centerY = 112.5; 
                     const laneX = 217.5 - (index * 3); const laneY = 105 - (index * 3);
                     const startX = centerX + laneX * Math.cos(Math.PI / 2);
