@@ -5,21 +5,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
         body { background: #1a472a; color: white; font-family: sans-serif; text-align: center; margin: 0; padding-bottom: 50px;}
-        
-        /* PISTA OVALE AGGIORNATA */
-        #pista-container { 
-            width: 800px; height: 400px; background: #2d5a3c; border-radius: 250px; 
-            position: relative; border: 45px solid #8B4513; margin: 30px auto; 
-            box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px black;
-        }
-        
-        /* LINEA DI PARTENZA/ARRIVO */
-        .traguardo {
-            position: absolute; bottom: -45px; left: 50%; width: 6px; height: 45px;
-            background: repeating-linear-gradient(to bottom, white 0, white 5px, red 5px, red 10px);
-            z-index: 1; transform: translateX(-50%);
-        }
-        
+        #pista-container { width: 800px; height: 400px; background: #2d5a3c; border-radius: 250px; position: relative; border: 45px solid #8B4513; margin: 30px auto; box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 0 20px black;}
+        .traguardo { position: absolute; bottom: -45px; left: 50%; width: 6px; height: 45px; background: repeating-linear-gradient(to bottom, white 0, white 5px, red 5px, red 10px); z-index: 1; transform: translateX(-50%);}
         .cavallo { width: 22px; height: 22px; border-radius: 50%; position: absolute; border: 2px solid #fff; font-size: 11px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 10; transition: all 0.1s linear;}
         
         #game-interface { width: 90%; max-width: 1000px; background: #222; padding: 20px; border-radius: 15px; border: 2px solid gold; margin: auto; }
@@ -30,26 +17,22 @@
         .btn-bet { background: gold; border: none; padding: 5px 15px; cursor: pointer; font-weight: bold; border-radius: 3px;}
         #timer-display { font-size: 2.5em; color: #ffcc00; margin: 10px; font-weight: bold;}
         .info-panel { display: flex; justify-content: space-around; background: #111; padding: 15px; border-radius: 10px; margin-top: 20px;}
-        .podio { text-align: left; color: #ddd; }
-        .btn-audio { background: #e74c3c; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 10px; font-size: 16px;}
+        .podio { text-align: left; color: #ddd; flex: 1; padding: 10px;}
+        .btn-audio { background: #e74c3c; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-bottom: 10px;}
+        .mie-scommesse { background: #2c3e50; padding: 10px; border-radius: 8px; margin-top: 15px; text-align: left; border: 1px solid #3498db; }
     </style>
 </head>
 <body>
-
     <button class="btn-audio" onclick="attivaAudio()" id="btn-audio">🔇 Clicca qui per sbloccare l'Audio</button>
-
-    <div id="pista-container">
-        <div class="traguardo"></div>
-    </div>
+    <div id="pista-container"><div class="traguardo"></div></div>
     <div id="timer-display">IN ATTESA DI GIOCATORI</div>
 
     <div id="game-interface">
-        
         <div id="login-section" class="login-box">
             <h3>🔑 Login Giocatore</h3>
             <input type="text" id="user-code" placeholder="NOME UTENTE"><br>
             <input type="password" id="user-pass" placeholder="PASSWORD"><br>
-            <button onclick="eseguiLogin()" style="padding:12px 30px; background:gold; font-weight:bold; font-size:18px; margin-top:15px; cursor:pointer;">ACCEDI ALLA RICEVITORIA</button>
+            <button onclick="eseguiLogin()" style="padding:12px 30px; background:gold; font-weight:bold; font-size:18px; margin-top:15px; cursor:pointer;">ACCEDI</button>
         </div>
 
         <div id="betting-section" style="display:none;">
@@ -58,19 +41,24 @@
                 <span style="font-size: 20px;">💶 Saldo: <b id="display-balance" style="color:#00ff00;">0</b>€</span>
             </div>
             
+            <div class="mie-scommesse">
+                <h4 style="margin-top:0; color: #3498db;">Le tue scommesse in questa gara:</h4>
+                <ul id="lista-mie-scommesse">Nessuna scommessa effettuata.</ul>
+            </div>
+            
             <table>
-                <thead><tr><th>N°</th><th>Cavallo</th><th>Quota Vin/Piaz</th><th>Tipo</th><th>Importo</th><th>Azione</th></tr></thead>
+                <thead><tr><th>N°</th><th>Cavallo</th><th>Quota Vin/Piaz/Ult</th><th>Tipo</th><th>Importo</th><th>Azione</th></tr></thead>
                 <tbody id="horse-table-body"></tbody>
             </table>
             
             <div class="info-panel">
-                <div class="podio">
-                    <h4>👥 Giocatori Online:</h4>
-                    <p id="online-users" style="color:#3498db;">Nessuno</p>
+                <div class="podio" style="border-right: 1px solid #555;">
+                    <h4>🏆 Ultima Gara:</h4>
+                    <p id="storico-podio">In attesa...</p>
                 </div>
-                <div class="podio" style="border-left: 1px solid #555; padding-left: 20px;">
-                    <h4>🏆 Risultati Ultima Gara:</h4>
-                    <p id="storico-podio">In attesa della prima gara...</p>
+                <div class="podio">
+                    <h4>💰 Vincitori:</h4>
+                    <ul id="storico-vincitori" style="color:#2ecc71;"></ul>
                 </div>
             </div>
         </div>
@@ -81,29 +69,25 @@
         let myUser = "";
         let cavalliElements = {};
         
-        // AUDIO (Sistemato)
         let audioAttivo = false;
-        // Uso file liberi da Wikipedia per evitare i blocchi
         const sparo = new Audio('https://upload.wikimedia.org/wikipedia/commons/f/f6/Shotgun_firing.ogg');
         const folla = new Audio('https://upload.wikimedia.org/wikipedia/commons/2/29/Cheering_crowd.ogg');
         folla.loop = true;
-        
-        // Sintetizzatore per il Bip (infallibile in HTML5)
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playBeep() {
             if(!audioAttivo) return;
-            const oscillator = audioCtx.createOscillator();
-            oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
-            oscillator.connect(audioCtx.destination);
-            oscillator.start(); oscillator.stop(audioCtx.currentTime + 0.1);
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
         }
 
         function attivaAudio() {
             audioAttivo = true;
             if(audioCtx.state === 'suspended') audioCtx.resume();
             document.getElementById('btn-audio').style.background = "#27ae60";
-            document.getElementById('btn-audio').innerText = "🔊 Audio Attivato e Funzionante!";
-            sparo.volume = 0.01; sparo.play(); // Sblocca il browser
+            document.getElementById('btn-audio').innerText = "🔊 Audio Attivato!";
+            sparo.volume = 0.01; sparo.play(); 
         }
 
         function eseguiLogin() {
@@ -126,22 +110,28 @@
         socket.on('update_data', (s) => {
             const r = s.current_race;
             if(myUser && s.users[myUser]) document.getElementById('display-balance').innerText = s.users[myUser].wallet;
-            document.getElementById('online-users').innerText = s.online_users.length > 0 ? s.online_users.join(" - ") : "Nessuno";
+            
+            // Le mie scommesse
+            const mieScommesse = r.bets.filter(b => b.user === myUser);
+            const ulScommesse = document.getElementById('lista-mie-scommesse');
+            if(mieScommesse.length === 0) ulScommesse.innerHTML = "<li>Nessuna scommessa effettuata.</li>";
+            else {
+                ulScommesse.innerHTML = "";
+                mieScommesse.forEach(b => ulScommesse.innerHTML += `<li>${b.amount}€ su <b>${b.horse_nome}</b> (${b.type}) a quota ${b.quota}</li>`);
+            }
 
+            // Storico e Vincitori
             if(s.history.length > 0) {
                 const ultima = s.history[s.history.length - 1];
-                document.getElementById('storico-podio').innerHTML = `
-                    1° <span style="color:gold;">${ultima.primo}</span><br>
-                    2° <span style="color:silver;">${ultima.secondo}</span><br>
-                    3° <span style="color:#cd7f32;">${ultima.terzo}</span><br>
-                    <small style="color:#e74c3c;">Ultimo: ${ultima.ultimo}</small>
-                `;
+                document.getElementById('storico-podio').innerHTML = `1° ${ultima.primo}<br>2° ${ultima.secondo}<br>3° ${ultima.terzo}<br><small style="color:#e74c3c;">Ultimo: ${ultima.ultimo}</small>`;
+                const ulVincitori = document.getElementById('storico-vincitori');
+                ulVincitori.innerHTML = ultima.vincitori.length === 0 ? "<li>Nessun vincitore.</li>" : "";
+                ultima.vincitori.forEach(v => ulVincitori.innerHTML += `<li><b>${v.user}</b> vince ${v.vincita}€ (${v.tipo})</li>`);
             }
 
             const tbody = document.getElementById('horse-table-body');
             tbody.innerHTML = "";
             const pista = document.getElementById('pista-container');
-            
             if(r.status === "waiting" && r.bets.length === 0) {
                 document.querySelectorAll('.cavallo').forEach(e => e.remove());
                 cavalliElements = {};
@@ -149,40 +139,35 @@
 
             r.horses.forEach((h, index) => {
                 const dis = r.status !== "waiting" && r.status !== "countdown" ? "disabled" : "";
-                
-                // Creazione riga tabella con Tendina Tipi Scommessa
                 tbody.innerHTML += `<tr>
                     <td><div style="background:${h.colore};width:22px;height:22px;border-radius:50%;margin:auto;">${h.id}</div></td>
                     <td>${h.nome}</td>
-                    <td style="font-size:16px;">V: <b style="color:gold;">${h.quota_v}</b> / P: <b style="color:#aaa;">${h.quota_p}</b></td>
+                    <td style="font-size:14px;">V:<b style="color:gold">${h.quota_v}</b> / P:<b style="color:#aaa">${h.quota_p}</b> / U:<b style="color:#e74c3c">${h.quota_u}</b></td>
                     <td>
                         <select id="tipo-${h.id}" ${dis} style="padding:5px;">
                             <option value="Vincente">Vincente</option>
                             <option value="Piazzato">Piazzato (1-3)</option>
+                            <option value="Ultimo">Ultimo (Fanalino)</option>
                         </select>
                     </td>
-                    <td><input type="number" id="amt-${h.id}" style="width:60px; padding:5px;" value="5" ${dis}></td>
+                    <td><input type="number" id="amt-${h.id}" style="width:60px" value="5" ${dis}></td>
                     <td><button class="btn-bet" onclick="punta(${h.id})" ${dis}>PUNTA</button></td>
                 </tr>`;
                 
-                // PALLINI SULLA LINEA DI PARTENZA IN BASSO
                 if(!cavalliElements[h.id] && r.status === "waiting") {
                     const d = document.createElement('div');
                     d.className = 'cavallo'; d.style.backgroundColor = h.colore; d.innerText = h.id;
                     pista.appendChild(d);
                     cavalliElements[h.id] = d;
-                    
-                    // Math.PI / 2 è esattamente l'angolo per posizionarli in basso al centro!
-                    const laneX = 400 + (index * 4); // Corsie larghe
+                    const laneX = 400 + (index * 4); 
                     const laneY = 200 + (index * 4);
                     const startX = 400 + laneX * Math.cos(Math.PI / 2);
                     const startY = 200 + laneY * Math.sin(Math.PI / 2);
-                    d.style.left = (startX - 11) + 'px'; 
-                    d.style.top = (startY - 11) + 'px';
+                    d.style.left = (startX - 11) + 'px'; d.style.top = (startY - 11) + 'px';
                 }
             });
 
-            if(r.status === "waiting") document.getElementById('timer-display').innerText = "IN ATTESA DI GIOCATORI";
+            if(r.status === "waiting") document.getElementById('timer-display').innerText = s.settings.auto_timer ? "IN ATTESA DI SCOMMESSE" : "ATTESA PARTENZA (Manuale)";
         });
 
         function punta(id) {
@@ -206,13 +191,9 @@
             Object.keys(pos).forEach(id => {
                 const laneX = 400 + (index * 4);
                 const laneY = 200 + (index * 4);
-                // Math.PI / 2 sfalsa la partenza in basso!
                 const x = 400 + laneX * Math.cos(pos[id] + Math.PI / 2);
                 const y = 200 + laneY * Math.sin(pos[id] + Math.PI / 2);
-                if(cavalliElements[id]) { 
-                    cavalliElements[id].style.left = (x - 11) +'px'; 
-                    cavalliElements[id].style.top = (y - 11) +'px'; 
-                }
+                if(cavalliElements[id]) { cavalliElements[id].style.left = (x - 11) +'px'; cavalliElements[id].style.top = (y - 11) +'px'; }
                 index++;
             });
         });
