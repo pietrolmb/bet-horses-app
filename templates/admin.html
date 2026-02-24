@@ -16,12 +16,10 @@
         th, td { padding: 8px; border: 1px solid #ddd; text-align: left; font-size:14px;}
         th { background: #34495e; color: white; }
         
-        /* Pista Admin con CSS Ellisse Perfetta */
-        #pista-container { 
-            width: 450px; height: 225px; background: #2d5a3c; border-radius: 50%; 
-            position: relative; border: 45px solid #8B4513; margin: auto; overflow:visible; box-sizing: border-box; z-index: 1;
-        }
-        .traguardo { position: absolute; bottom: -45px; left: 50%; width: 4px; height: 45px; background: red; transform: translateX(-50%);}
+        /* Pista Admin con CSS Ellisse Perfetta e Wrapper Isolato */
+        #pista-wrapper { width: 450px; height: 225px; position: relative; margin: 30px auto; zoom: 0.9;}
+        #pista-bg { width: 100%; height: 100%; background: #2d5a3c; border-radius: 50%; border: 45px solid #8B4513; box-sizing: border-box; position: absolute; top:0; left:0;}
+        .traguardo { position: absolute; bottom: 0; left: 50%; width: 4px; height: 45px; background: red; transform: translateX(-50%);}
         .cavallo { width: 14px; height: 14px; border-radius: 50%; position: absolute; border: 1px solid #fff; font-size: 8px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 20; transition: all 0.12s linear;}
         
         .race-history-card { background: #fdfdfd; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px; }
@@ -54,21 +52,23 @@
                         <b>Secondi Timer Partenza:</b>
                         <input type="number" id="set-timer-dur" style="width: 80px; padding: 5px;" placeholder="60">
                     </div>
-                    <button onclick="salvaImpostazioni()" style="padding: 5px 10px; font-size: 14px;">Salva Impostazioni</button>
+                    <button onclick="salvaImpostazioni()" style="padding: 5px 10px; font-size: 14px; background:#2ecc71;">Salva Impostazioni</button>
                 </div>
 
                 <button class="btn-forza" onclick="forzaPartenza()">FORZA PARTENZA ORA</button>
-                <div style="margin-top:30px; margin-bottom:20px;">
-                    <div id="pista-container"><div class="traguardo"></div></div>
+                
+                <div id="pista-wrapper">
+                    <div id="pista-bg"></div>
+                    <div class="traguardo"></div>
                 </div>
             </div>
             
             <div class="card" style="border-left: 5px solid #3498db;">
                 <h3>➕ Ricarica / Crea Utente</h3>
                 <input type="text" id="nuovo-user" placeholder="Utente" style="width: 30%;">
-                <input type="text" id="nuova-pass" placeholder="Password (Obbligatoria)" style="width: 30%;">
+                <input type="text" id="nuova-pass" placeholder="Password" style="width: 30%;">
                 <input type="number" id="importo" placeholder="Euro" style="width: 20%;">
-                <button onclick="gestioneSoldi()" style="margin-top: 10px; width: 100%;">Esegui</button>
+                <button onclick="gestioneSoldi()" style="margin-top: 10px; width: 100%;">Esegui Operazione</button>
             </div>
             
             <div class="card" style="border-left: 5px solid #9b59b6;">
@@ -183,7 +183,7 @@
                 tbodyUtenti.innerHTML += `<tr><td><b>${nomeUtente}</b></td><td>${parseFloat(datiUtente.wallet).toFixed(2)} €</td><td>${isOnline}</td></tr>`;
             }
 
-            const pista = document.getElementById('pista-container');
+            const pistaWrapper = document.getElementById('pista-wrapper');
             if(r.status === "waiting" && r.bets.length === 0) {
                 document.querySelectorAll('.cavallo').forEach(e => e.remove());
                 cavalliElements = {};
@@ -192,13 +192,11 @@
                 if(!cavalliElements[h.id] && r.status === "waiting") {
                     const d = document.createElement('div');
                     d.className = 'cavallo'; d.style.backgroundColor = h.colore; d.innerText = h.id;
-                    pista.appendChild(d);
+                    pistaWrapper.appendChild(d);
                     cavalliElements[h.id] = d;
                     
-                    const centerX = 225; 
-                    const centerY = 112.5; 
-                    const laneX = 217 - (index * 3); 
-                    const laneY = 105 - (index * 3);
+                    const centerX = 225; const centerY = 112.5; 
+                    const laneX = 216 - (index * 2.8); const laneY = 104 - (index * 2.8);
                     const startX = centerX + laneX * Math.cos(Math.PI / 2);
                     const startY = centerY + laneY * Math.sin(Math.PI / 2);
                     d.style.left = (startX - 7) + 'px'; d.style.top = (startY - 7) + 'px';
@@ -209,10 +207,8 @@
         socket.on('race_update', (pos) => {
             let index = 0;
             Object.keys(pos).forEach(id => {
-                const centerX = 225; 
-                const centerY = 112.5; 
-                const laneX = 217 - (index * 3);
-                const laneY = 105 - (index * 3);
+                const centerX = 225; const centerY = 112.5; 
+                const laneX = 216 - (index * 2.8); const laneY = 104 - (index * 2.8);
                 const x = centerX + laneX * Math.cos(pos[id] + Math.PI / 2);
                 const y = centerY + laneY * Math.sin(pos[id] + Math.PI / 2);
                 if(cavalliElements[id]) { cavalliElements[id].style.left = (x - 7) +'px'; cavalliElements[id].style.top = (y - 7) +'px'; }
