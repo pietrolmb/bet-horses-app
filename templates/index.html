@@ -156,39 +156,57 @@
             event.target.classList.add('active');
         }
 
-        // --- REGIA YOUTUBE AVANZATA ---
-        let ytPlayer; let currentState = "none"; 
+        // --- MOTORE YOUTUBE AVANZATO ANTI-BLOCCO ---
+        let ytPlayer; let ytReady = false;
         let ytFadeIn, ytFadeOut, ytLoopMonitor;
         
         function onYouTubeIframeAPIReady() {
-            ytPlayer = new YT.Player('yt-player', { height: '1', width: '1', videoId: '', playerVars: { 'autoplay': 0, 'controls': 0, 'showinfo': 0, 'rel': 0 } });
+            ytPlayer = new YT.Player('yt-player', { 
+                height: '1', width: '1', videoId: 'L_LUpnjgPso', // ID di default per inizializzare
+                playerVars: { 'autoplay': 0, 'controls': 0, 'showinfo': 0, 'rel': 0 },
+                events: { 'onReady': () => { ytReady = true; } }
+            });
         }
         
         function playYT(url, start, end, fade=false) {
-            if(!ytPlayer || typeof ytPlayer.playVideo !== 'function' || !audioAttivo || !url) return;
+            if(!ytReady || !audioAttivo || !url) return;
             clearInterval(ytFadeIn); clearInterval(ytFadeOut); clearInterval(ytLoopMonitor);
             
             ytPlayer.loadVideoById({'videoId': url, 'startSeconds': start});
+            
             if(fade) {
-                ytPlayer.setVolume(0); ytPlayer.playVideo();
-                let v = 0; ytFadeIn = setInterval(()=>{ v+=5; if(v<=50) ytPlayer.setVolume(v); else clearInterval(ytFadeIn); }, 200);
+                ytPlayer.setVolume(0); 
+                let v = 0; 
+                ytFadeIn = setInterval(()=>{ 
+                    v += 5; 
+                    if(v <= 40) { if(ytPlayer.setVolume) ytPlayer.setVolume(v); }
+                    else clearInterval(ytFadeIn); 
+                }, 200);
             } else {
-                ytPlayer.setVolume(40); ytPlayer.playVideo();
+                ytPlayer.setVolume(60); 
             }
             
-            // Loop intelligente se End > 0
             if(end > 0) {
                 ytLoopMonitor = setInterval(() => {
-                    if(ytPlayer.getCurrentTime() >= end) ytPlayer.seekTo(start);
+                    if(ytPlayer.getCurrentTime && ytPlayer.getCurrentTime() >= end) ytPlayer.seekTo(start);
                 }, 500);
             }
         }
 
-        function stopYTFade() {
-            if(!ytPlayer || typeof ytPlayer.getVolume !== 'function') return;
-            clearInterval(ytFadeIn); clearInterval(ytFadeOut); clearInterval(ytLoopMonitor);
+        function fadeOutYT() {
+            clearInterval(ytFadeIn); clearInterval(ytLoopMonitor);
+            if(!ytReady || typeof ytPlayer.getVolume !== 'function') return;
             let v = ytPlayer.getVolume(); 
-            ytFadeOut = setInterval(()=>{ v-=5; if(v>=0) ytPlayer.setVolume(v); else { clearInterval(ytFadeOut); ytPlayer.pauseVideo(); } }, 200);
+            ytFadeOut = setInterval(() => { 
+                v -= 5; 
+                if(v > 0) { ytPlayer.setVolume(v); } 
+                else { clearInterval(ytFadeOut); ytPlayer.pauseVideo(); } 
+            }, 150);
+        }
+
+        function stopYT() {
+            clearInterval(ytFadeIn); clearInterval(ytFadeOut); clearInterval(ytLoopMonitor);
+            if(ytReady && typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
         }
 
         function annunciaVincitore(nome, numero) {
@@ -196,7 +214,6 @@
             const msg = new SpeechSynthesisUtterance(`Ha vinto il cavallo numero ${numero}, ${nome}!`);
             msg.lang = 'it-IT'; msg.rate = 1.0;
             msg.onend = function() {
-                currentState = "winning";
                 if(setts.yt_win_enable) playYT(setts.yt_win_url, setts.yt_win_start, setts.yt_win_end, true);
             };
             window.speechSynthesis.speak(msg);
@@ -219,13 +236,23 @@
             audioAttivo = !audioAttivo; const btn = document.getElementById('btn-audio');
             if(audioAttivo) {
                 btn.style.background = "#27ae60"; btn.innerText = "🔊 Regia Audio Attiva";
-                if(ytPlayer && typeof ytPlayer.playVideo === 'function') { ytPlayer.setVolume(0); ytPlayer.playVideo(); setTimeout(()=>ytPlayer.pauseVideo(), 100); }
-                if(document.getElementById('timer-display').innerText.includes("ATTESA") || document.getElementById('timer-display').innerText.includes("CHIUSURA")) {
-                    currentState = "waiting"; if(setts.yt_wait_enable) playYT(setts.yt_wait_url, setts.yt_wait_start, setts.yt_wait_end, true);
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                playTone(400, 0.1);
+                
+                // Trucco sblocco YouTube immediato
+                if(ytReady) {
+                    ytPlayer.setVolume(0); ytPlayer.playVideo();
+                    setTimeout(() => {
+                        if(document.getElementById('timer-display').innerText.includes("PARTITI")) {
+                            if(setts.yt_race_enable) playYT(setts.yt_race_url, setts.yt_race_start, setts.yt_race_end, false);
+                        } else {
+                            if(setts.yt_wait_enable) playYT(setts.yt_wait_url, setts.yt_wait_start, setts.yt_wait_end, true);
+                        }
+                    }, 500);
                 }
             } else {
                 btn.style.background = "#e74c3c"; btn.innerText = "🔇 Suoni Disattivati";
-                if(ytPlayer && typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
+                stopYT();
             }
         }
 
@@ -305,11 +332,10 @@
                 }
             });
 
-            if(r.status === "waiting") {
+            if(r.status === "waiting" && audioAttivo) {
                 document.getElementById('timer-display').innerText = "IN ATTESA DI GIOCATORI";
-                if(currentState !== "waiting" && audioAttivo) { 
-                    currentState = "waiting"; if(setts.yt_wait_enable) playYT(setts.yt_wait_url, setts.yt_wait_start, setts.yt_wait_end, true); 
-                }
+                // Riavvia l'attesa se ci siamo appena sbloccati
+                if(setts.yt_wait_enable && ytReady) playYT(setts.yt_wait_url, setts.yt_wait_start, setts.yt_wait_end, true); 
             }
             calcAccoppiata(); calcTrio();
         });
@@ -361,7 +387,7 @@
 
         socket.on('race_start', () => {
             document.getElementById('timer-display').innerText = "🐎 PARTITI! 🐎";
-            stopYTFade(); currentState = "racing"; 
+            stopYT(); // Taglio netto della musica attesa
             if(setts.yt_race_enable) playYT(setts.yt_race_url, setts.yt_race_start, setts.yt_race_end, false);
             if(audioAttivo) { galoppo.volume = 0.5; galoppo.play(); }
         });
@@ -378,7 +404,8 @@
 
         socket.on('race_finished', (risultato) => {
             document.getElementById('timer-display').innerText = "🏁 GARA CONCLUSA! 🏁";
-            stopYTFade(); if(audioAttivo) { galoppo.pause(); galoppo.currentTime = 0; }
+            fadeOutYT(); // Sfuma dolcemente la gara
+            if(audioAttivo) { galoppo.pause(); galoppo.currentTime = 0; }
             document.getElementById('audio-folla').play(); setTimeout(()=>document.getElementById('audio-folla').pause(), 4000);
             
             annunciaVincitore(risultato.primo_nome, risultato.primo_id);
