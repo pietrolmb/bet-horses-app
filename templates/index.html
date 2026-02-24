@@ -45,7 +45,7 @@
         <h2 id="win-amount" style="font-size:2.5em; margin:10px 0; color: gold; text-shadow: 1px 1px #000;">Hai vinto 0.00€</h2>
     </div>
 
-    <audio id="audio-folla" src="https://www.myinstants.com/media/sounds/crowd-cheering.mp3" preload="auto" loop crossorigin="anonymous"></audio>
+    <audio id="audio-folla" src="https://www.myinstants.com/media/sounds/crowd-cheering.mp3" preload="auto" crossorigin="anonymous"></audio>
     <div id="yt-player"></div>
 
     <button class="btn-audio" onclick="toggleAudio()" id="btn-audio">🔇 Clicca per Attivare Regia Audio</button>
@@ -145,12 +145,9 @@
 
     <script>
         const socket = io();
-        let myUser = "";
-        let myBalance = 0; 
+        let myUser = ""; let myBalance = 0; 
         let cavalliElements = {};
-        let audioAttivo = false;
-        let setts = {}; 
-        let currentHorses = [];
+        let audioAttivo = false; let setts = {}; let currentHorses = [];
         
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -159,40 +156,77 @@
             event.target.classList.add('active');
         }
 
+        // --- REGIA YOUTUBE AVANZATA ---
         let ytPlayer; let currentState = "none"; 
-        function onYouTubeIframeAPIReady() {
-            ytPlayer = new YT.Player('yt-player', { height: '1', width: '1', videoId: '', playerVars: { 'autoplay': 0, 'controls': 0, 'showinfo': 0, 'rel': 0 }, events: { 'onStateChange': onPlayerStateChange }});
-        }
-        function onPlayerStateChange(event) { if (event.data === YT.PlayerState.ENDED && currentState === "waiting") { ytPlayer.playVideo(); } }
+        let ytFadeIn, ytFadeOut, ytLoopMonitor;
         
-        function playYTMese(url, start, fade=false) {
-            if(!ytPlayer || !audioAttivo || !url) return;
-            ytPlayer.loadVideoById({'videoId': url, 'startSeconds': start});
-            if(fade) { ytPlayer.setVolume(0); ytPlayer.playVideo(); let v = 0; let f = setInterval(()=>{ v+=5; if(v<=50) ytPlayer.setVolume(v); else clearInterval(f); }, 200); } 
-            else { ytPlayer.setVolume(40); ytPlayer.playVideo(); }
+        function onYouTubeIframeAPIReady() {
+            ytPlayer = new YT.Player('yt-player', { height: '1', width: '1', videoId: '', playerVars: { 'autoplay': 0, 'controls': 0, 'showinfo': 0, 'rel': 0 } });
         }
+        
+        function playYT(url, start, end, fade=false) {
+            if(!ytPlayer || typeof ytPlayer.playVideo !== 'function' || !audioAttivo || !url) return;
+            clearInterval(ytFadeIn); clearInterval(ytFadeOut); clearInterval(ytLoopMonitor);
+            
+            ytPlayer.loadVideoById({'videoId': url, 'startSeconds': start});
+            if(fade) {
+                ytPlayer.setVolume(0); ytPlayer.playVideo();
+                let v = 0; ytFadeIn = setInterval(()=>{ v+=5; if(v<=50) ytPlayer.setVolume(v); else clearInterval(ytFadeIn); }, 200);
+            } else {
+                ytPlayer.setVolume(40); ytPlayer.playVideo();
+            }
+            
+            // Loop intelligente se End > 0
+            if(end > 0) {
+                ytLoopMonitor = setInterval(() => {
+                    if(ytPlayer.getCurrentTime() >= end) ytPlayer.seekTo(start);
+                }, 500);
+            }
+        }
+
         function stopYTFade() {
-            if(!ytPlayer) return;
-            let v = ytPlayer.getVolume(); let f = setInterval(()=>{ v-=5; if(v>=0) ytPlayer.setVolume(v); else { clearInterval(f); ytPlayer.pauseVideo(); } }, 200);
+            if(!ytPlayer || typeof ytPlayer.getVolume !== 'function') return;
+            clearInterval(ytFadeIn); clearInterval(ytFadeOut); clearInterval(ytLoopMonitor);
+            let v = ytPlayer.getVolume(); 
+            ytFadeOut = setInterval(()=>{ v-=5; if(v>=0) ytPlayer.setVolume(v); else { clearInterval(ytFadeOut); ytPlayer.pauseVideo(); } }, 200);
         }
 
         function annunciaVincitore(nome, numero) {
             if(!audioAttivo) return;
             const msg = new SpeechSynthesisUtterance(`Ha vinto il cavallo numero ${numero}, ${nome}!`);
             msg.lang = 'it-IT'; msg.rate = 1.0;
-            msg.onend = function() { currentState = "winning"; playYTMese(setts.yt_win_url, setts.yt_win_start, true); };
+            msg.onend = function() {
+                currentState = "winning";
+                if(setts.yt_win_enable) playYT(setts.yt_win_url, setts.yt_win_start, setts.yt_win_end, true);
+            };
             window.speechSynthesis.speak(msg);
+        }
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const galoppo = new Audio('https://actions.google.com/sounds/v1/foley/horse_gallop_dirt.ogg');
+        galoppo.loop = true;
+
+        function playTone(freq, duration, type='sine') {
+            if(!audioAttivo) return;
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + duration);
         }
 
         function toggleAudio() {
             audioAttivo = !audioAttivo; const btn = document.getElementById('btn-audio');
             if(audioAttivo) {
                 btn.style.background = "#27ae60"; btn.innerText = "🔊 Regia Audio Attiva";
-                if(ytPlayer) { ytPlayer.setVolume(0); ytPlayer.playVideo(); setTimeout(()=>ytPlayer.pauseVideo(), 100); }
+                if(ytPlayer && typeof ytPlayer.playVideo === 'function') { ytPlayer.setVolume(0); ytPlayer.playVideo(); setTimeout(()=>ytPlayer.pauseVideo(), 100); }
                 if(document.getElementById('timer-display').innerText.includes("ATTESA") || document.getElementById('timer-display').innerText.includes("CHIUSURA")) {
-                    currentState = "waiting"; playYTMese(setts.yt_wait_url, setts.yt_wait_start);
+                    currentState = "waiting"; if(setts.yt_wait_enable) playYT(setts.yt_wait_url, setts.yt_wait_start, setts.yt_wait_end, true);
                 }
-            } else { btn.style.background = "#e74c3c"; btn.innerText = "🔇 Suoni Disattivati"; if(ytPlayer) ytPlayer.pauseVideo(); }
+            } else {
+                btn.style.background = "#e74c3c"; btn.innerText = "🔇 Suoni Disattivati";
+                if(ytPlayer && typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo();
+            }
         }
 
         function eseguiLogin() {
@@ -205,7 +239,6 @@
             document.getElementById('betting-section').style.display = 'block';
             document.getElementById('display-username').innerText = myUser; socket.emit('request_update');
         });
-
         socket.on('login_error', (msg) => { alert("❌ " + msg); });
 
         socket.on('update_data', (s) => {
@@ -217,7 +250,6 @@
             }
             document.getElementById('utenti-online').innerText = s.online_users.length > 0 ? s.online_users.join(", ") : "Nessuno";
             
-            // Nascondi Pannelli Scommesse se la gara è in corso
             if(r.status === "racing" || r.status === "finished") {
                 document.getElementById('betting-forms-container').style.display = 'none';
                 document.getElementById('scommesse-chiuse').style.display = 'block';
@@ -226,7 +258,6 @@
                 document.getElementById('scommesse-chiuse').style.display = 'none';
             }
             
-            // Mostra limiti per scheda
             document.getElementById('lim-singola').innerText = setts.max_bet_singola > 0 ? `Max: ${setts.max_bet_singola.toFixed(2)}€` : "Nessun Limite";
             document.getElementById('lim-acc').innerText = setts.max_bet_accoppiata > 0 ? `Max: ${setts.max_bet_accoppiata.toFixed(2)}€` : "Nessun Limite";
             document.getElementById('lim-trio').innerText = setts.max_bet_trio > 0 ? `Max: ${setts.max_bet_trio.toFixed(2)}€` : "Nessun Limite";
@@ -276,7 +307,9 @@
 
             if(r.status === "waiting") {
                 document.getElementById('timer-display').innerText = "IN ATTESA DI GIOCATORI";
-                if(currentState !== "waiting" && audioAttivo) { currentState = "waiting"; playYTMese(setts.yt_wait_url, setts.yt_wait_start); }
+                if(currentState !== "waiting" && audioAttivo) { 
+                    currentState = "waiting"; if(setts.yt_wait_enable) playYT(setts.yt_wait_url, setts.yt_wait_start, setts.yt_wait_end, true); 
+                }
             }
             calcAccoppiata(); calcTrio();
         });
@@ -285,8 +318,7 @@
         
         function calcSingola(id) {
             const h = getH(id); const t = document.getElementById('tipo-'+id).value; const a = parseFloat(document.getElementById('amt-'+id).value)||0;
-            let q = t==="Piazzato"?h.quota_p : t==="Ultimo"?h.quota_u : h.quota_v;
-            document.getElementById('pot-'+id).innerText = `Pot: ${(a*q).toFixed(2)}€`;
+            let q = t==="Piazzato"?h.quota_p : t==="Ultimo"?h.quota_u : h.quota_v; document.getElementById('pot-'+id).innerText = `Pot: ${(a*q).toFixed(2)}€`;
         }
         function calcAccoppiata() {
             const h1 = getH(document.getElementById('acc-h1').value); const h2 = getH(document.getElementById('acc-h2').value);
@@ -305,7 +337,7 @@
             document.getElementById('btn-trio').disabled = (h1.id===h2.id || h1.id===h3.id || h2.id===h3.id);
         }
 
-        function preCheck(amt) { if(amt > myBalance) { alert("❌ Saldo insufficiente! Ricarica il conto."); return false; } return true; }
+        function preCheck(amt) { if(amt > myBalance) { alert("❌ Saldo insufficiente! Ricarica in ricevitoria."); return false; } return true; }
 
         function puntaSingola(id) {
             const a = parseFloat(document.getElementById('amt-'+id).value); const t = document.getElementById('tipo-'+id).value;
@@ -329,7 +361,9 @@
 
         socket.on('race_start', () => {
             document.getElementById('timer-display').innerText = "🐎 PARTITI! 🐎";
-            currentState = "racing"; playYTMese(setts.yt_race_url, setts.yt_race_start);
+            stopYTFade(); currentState = "racing"; 
+            if(setts.yt_race_enable) playYT(setts.yt_race_url, setts.yt_race_start, setts.yt_race_end, false);
+            if(audioAttivo) { galoppo.volume = 0.5; galoppo.play(); }
         });
 
         socket.on('race_update', (pos) => {
@@ -342,10 +376,11 @@
             });
         });
 
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         socket.on('race_finished', (risultato) => {
             document.getElementById('timer-display').innerText = "🏁 GARA CONCLUSA! 🏁";
-            stopYTFade();
+            stopYTFade(); if(audioAttivo) { galoppo.pause(); galoppo.currentTime = 0; }
+            document.getElementById('audio-folla').play(); setTimeout(()=>document.getElementById('audio-folla').pause(), 4000);
+            
             annunciaVincitore(risultato.primo_nome, risultato.primo_id);
             
             let miaVincitaTotale = 0;
