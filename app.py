@@ -16,13 +16,10 @@ data = {
     "history": [],
     "settings": {
         "auto_timer": True, 
-        "max_bet_singola": 0.0, 
-        "max_bet_accoppiata": 0.0, 
-        "max_bet_trio": 0.0,
+        "max_bet_singola": 0.0, "max_bet_accoppiata": 0.0, "max_bet_trio": 0.0,
         "timer_duration": 60,
-        "race_duration": 30, # NUOVO: Durata esatta della corsa in secondi
-        "min_horses": 6, 
-        "max_horses": 9,
+        "race_duration": 30, 
+        "min_horses": 6, "max_horses": 9,
         "yt_wait_enable": True, "yt_wait_url": "L_LUpnjgPso", "yt_wait_start": 0, "yt_wait_end": 0,    
         "yt_race_enable": True, "yt_race_url": "XqEQJe1kRHA", "yt_race_start": 23, "yt_race_end": 0,   
         "yt_win_enable": True, "yt_win_url": "E3m-XH1Kij0",  "yt_win_start": 54, "yt_win_end": 65     
@@ -35,21 +32,23 @@ NOMI_B = ["Smoke", "Non Si Può", "Lester", "Muffin", "Pride", "Thunder", "Rocke
 def genera_nuova_corsa():
     min_h = data["settings"]["min_horses"]
     max_h = data["settings"]["max_horses"]
-    if min_h > max_h: 
-        min_h, max_h = max_h, min_h 
+    if min_h > max_h: min_h, max_h = max_h, min_h 
     num = random.randint(min_h, max_h) 
     
     horses = []
     nomi = random.sample([f"{a} {b}" for a in NOMI_A for b in NOMI_B], num)
     
-    # 1/3 di favoriti, resto outsider
-    num_fav = max(1, num // 3)
+    # LA NUOVA REGOLA DEI FAVORITI: 
+    # Esattamente 2 super-favoriti, un gruppo solido di sfidanti medi, e il resto outsider.
+    # Questo garantisce adrenalina e protegge il banco dalle accoppiate scontate.
+    num_fav = 2
+    num_mid = max(2, num // 2 - 1)
+    num_out = num - num_fav - num_mid
+    
     weights = []
-    for i in range(num):
-        if i < num_fav: 
-            weights.append(random.uniform(100, 180)) 
-        else: 
-            weights.append(random.uniform(10, 50)) 
+    for _ in range(num_fav): weights.append(random.uniform(90, 140))  # I 2 Favoriti
+    for _ in range(num_mid): weights.append(random.uniform(40, 75))   # Gli Inseguitori (Rompiscatole)
+    for _ in range(num_out): weights.append(random.uniform(10, 30))   # Gli Outsider
             
     random.shuffle(weights) 
     tot_w = sum(weights)
@@ -59,14 +58,12 @@ def genera_nuova_corsa():
     tot_inv = sum(inv_weights)
     p_ultimo = [iw / tot_inv for iw in inv_weights]
     
-    # LAVAGNA AL 35%
-    house_edge = 1.35 
+    house_edge = 1.35 # Lavagna Banco al 35% (Vantaggio gigantesco per la ricevitoria)
 
     for i in range(num):
         q_v = max(1.05, round(1 / (p_vittoria[i] * house_edge), 2))
         q_u = max(1.05, round(1 / (p_ultimo[i] * house_edge), 2))
 
-        # PIAZZATO RIMOSSO DEL TUTTO
         horses.append({
             "id": i + 1, "nome": nomi[i], "prob_vittoria": p_vittoria[i], 
             "quota_v": q_v, "quota_u": q_u, 
@@ -106,6 +103,24 @@ def handle_wallet(req):
     data["users"][user]["wallet"] = round(data["users"][user]["wallet"] + amount, 2)
     if amount > 0: data["users"][user]["tot_dep"] += amount 
     socketio.emit('update_data', data)
+
+@socketio.on('admin_delete_user')
+def admin_delete_user(req):
+    user = req.get('user', '').strip()
+    if user in data["users"]:
+        del data["users"][user]
+        if user in data["online_users"]:
+            data["online_users"].remove(user)
+        socketio.emit('update_data', data)
+
+@socketio.on('user_delete_self')
+def user_delete_self(req):
+    user = req.get('user', '').strip()
+    if user in data["users"]:
+        del data["users"][user]
+        if user in data["online_users"]:
+            data["online_users"].remove(user)
+        socketio.emit('update_data', data)
 
 @socketio.on('admin_update_settings')
 def update_settings(req):
@@ -190,19 +205,13 @@ def start_race():
     socketio.emit('update_data', data) 
     socketio.emit('race_start')
     
-    # -----------------------------------------------------------------
-    # MOTORE DI SIMULAZIONE A DURATA ESATTA
-    # -----------------------------------------------------------------
-    
-    # Quanti step (da 0.12 sec) servono per raggiungere la durata voluta?
-    # Es: 30 secondi / 0.12 = 250 steps
     total_steps = int(data["settings"]["race_duration"] / 0.12)
-    if total_steps < 50: total_steps = 50 # Protezione minima
+    if total_steps < 50: total_steps = 50 
     
-    # ESTRAZIONE ORDINE ARRIVO ESATTO (La Slot Machine)
     cavalli_rimasti = race["horses"].copy()
     ordine_arrivo = []
     
+    # LA ROULETTE DEL BANCO (La matematica che ti protegge)
     while cavalli_rimasti:
         pesi = [h["prob_vittoria"] for h in cavalli_rimasti]
         totale_pesi = sum(pesi)
@@ -215,10 +224,8 @@ def start_race():
                 cavalli_rimasti.remove(h)
                 break
                 
-    # Determiniamo a quale "step" taglierà il traguardo ciascun cavallo
-    # L'ultimo classificato taglierà il traguardo ESATTAMENTE allo step finale
     target_steps = {}
-    step_spread = max(10, int(total_steps * 0.20)) # Distanza temporale tra il 1° e l'ultimo
+    step_spread = max(10, int(total_steps * 0.20)) 
     base_step = total_steps - step_spread
     
     for i, h in enumerate(ordine_arrivo):
@@ -228,7 +235,6 @@ def start_race():
             distanza_proporzionale = int(i * (step_spread / max(1, len(ordine_arrivo) - 1)))
             target_steps[h["id"]] = base_step + distanza_proporzionale
             
-    # Generazione dei "copioni" di velocità per ogni cavallo
     profili_corsa = {}
     for h in race["horses"]:
         ts = target_steps[h["id"]]
@@ -237,15 +243,14 @@ def start_race():
         momentum = 1.0
         for j in range(ts):
             if j % 15 == 0: 
-                momentum = random.uniform(0.4, 1.8) # Cambi bruschi di velocità
+                momentum = random.uniform(0.4, 1.8) 
             passi_grezzi[j] *= momentum
             
         totale_grezzo = sum(passi_grezzi)
-        scala = (2 * math.pi) / totale_grezzo # Scala esatta per chiudere 1 giro (2 Pi Greco)
+        scala = (2 * math.pi) / totale_grezzo 
         
         profili_corsa[h["id"]] = [p * scala for p in passi_grezzi]
 
-    # Trasmissione al Client dell'animazione
     posizioni_attuali = {h["id"]: 0.0 for h in race["horses"]}
     
     for step in range(total_steps):
@@ -258,10 +263,6 @@ def start_race():
         socketio.emit('race_update', frame)
         socketio.sleep(0.12)
 
-    # -----------------------------------------------------------------
-    # FINE CORSA E CALCOLO VINCITE
-    # -----------------------------------------------------------------
-    
     id_1 = ordine_arrivo[0]["id"]
     id_2 = ordine_arrivo[1]["id"]
     id_3 = ordine_arrivo[2]["id"]
@@ -295,19 +296,24 @@ def start_race():
     data["admin_stats"]["totale_pagato"] = round(data["admin_stats"]["totale_pagato"] + totale_pagato_gara, 2)
     data["admin_stats"]["bilancio"] = round(data["admin_stats"]["totale_incassato"] - data["admin_stats"]["totale_pagato"], 2)
     
+    q1 = ordine_arrivo[0]["quota_v"]
+    q2 = ordine_arrivo[1]["quota_v"]
+    q3 = ordine_arrivo[2]["quota_v"]
+    
     risultato = {
         "gara_num": len(data["history"]) + 1,
         "primo_id": id_1, "primo_nome": ordine_arrivo[0]["nome"],
-        "primo": f"N°{id_1} - {ordine_arrivo[0]['nome']}", "q_primo": ordine_arrivo[0]["quota_v"],
+        "primo": f"N°{id_1} - {ordine_arrivo[0]['nome']}", "q_primo": q1,
         "secondo": f"N°{id_2} - {ordine_arrivo[1]['nome']}",
         "terzo": f"N°{id_3} - {ordine_arrivo[2]['nome']}", 
         "ultimo": f"N°{id_ult} - {ordine_arrivo[-1]['nome']}", "q_ultimo": ordine_arrivo[-1]["quota_u"],
+        "q_accoppiata": round(q1 * q2, 2), "q_trio": round(q1 * q2 * q3, 2),
         "vincitori": vincitori_gara, "scommesse": race["bets"].copy() 
     }
     data["history"].append(risultato)
     
     socketio.emit('race_finished', risultato)
-    socketio.sleep(15) # Attesa per canzone finale
+    socketio.sleep(8) 
     
     race["status"] = "waiting"
     race["horses"] = genera_nuova_corsa()
