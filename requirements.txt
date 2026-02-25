@@ -1,4 +1,6 @@
-flask
-flask-socketio
-eventlet
+Flask==2.3.2
+Flask-SocketIO==5.3.4
+eventlet==0.33.3
+pymongo[srv]==4.6.1
+certifi
 gunicorn
