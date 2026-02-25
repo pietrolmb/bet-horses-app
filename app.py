@@ -1,9 +1,11 @@
+# QUESTE DUE RIGHE DEVONO ESSERE LE PRIME IN ASSOLUTO!
+import eventlet
+eventlet.monkey_patch()
+
 import os
 import random
 import math
-import eventlet
 import certifi
-eventlet.monkey_patch()
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
 from pymongo import MongoClient
@@ -12,19 +14,19 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # ==========================================
-# CONNESSIONE AL DATABASE MONGODB (SICURA)
+# CONNESSIONE AL DATABASE MONGODB
 # ==========================================
-# Ora il codice legge la password dal cassetto segreto di Render!
 MONGO_URI = os.environ.get("MONGO_URI")
 
 try:
-    client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
+    # Ho aggiunto tls=True per forzare la sicurezza SSL
+    client = MongoClient(MONGO_URI, tls=True, tlsCAFile=certifi.where())
     db = client['horse_racing_db']
     print("✅ Connesso a MongoDB con successo!")
 except Exception as e:
     print("❌ Errore di connessione a MongoDB:", e)
 
-# ... (TUTTO IL RESTO DEL CODICE RIMANE IDENTICO, LASCIALO COSÌ) ...
+# ... (LASCIA TUTTO IL RESTO DEL CODICE IDENTICO FINO ALLA FINE) ...
 
 try:
     client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
