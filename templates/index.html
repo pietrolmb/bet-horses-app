@@ -169,11 +169,10 @@
             event.target.classList.add('active'); 
         }
 
-        // ELIMINAZIONE UTENTE
         function eliminaConto() {
             if(confirm("Sei sicuro di voler CHIUDERE DEFINITIVAMENTE il tuo conto gioco? Tutti i fondi rimanenti andranno persi e l'azione non è reversibile.")) {
                 socket.emit('user_delete_self', {user: myUser});
-                location.reload(); // Ricarica la pagina per tornare al login
+                location.reload(); 
             }
         }
 
@@ -307,18 +306,23 @@
             document.getElementById('lim-acc').innerText = setts.max_bet_accoppiata > 0 ? `Max: ${setts.max_bet_accoppiata.toFixed(2)}€` : "Nessun Limite";
             document.getElementById('lim-trio').innerText = setts.max_bet_trio > 0 ? `Max: ${setts.max_bet_trio.toFixed(2)}€` : "Nessun Limite";
 
+            // SCOMMESSE CON VINCITA POTENZIALE
             const mie = r.bets.filter(b => b.user === myUser); 
             const ul = document.getElementById('lista-mie-scommesse'); 
             ul.innerHTML = mie.length ? "" : "<li>Nessuna giocata in questa gara.</li>"; 
-            mie.forEach(b => ul.innerHTML += `<li>${b.amount.toFixed(2)}€ su <b>${b.dettaglio}</b> (Quota: ${b.quota})</li>`);
+            mie.forEach(b => {
+                const vincita_potenziale = (b.amount * b.quota).toFixed(2);
+                ul.innerHTML += `<li style="margin-bottom:8px;">${b.amount.toFixed(2)}€ su <b>${b.dettaglio}</b> (Quota: ${b.quota})<br>💰 Vincita potenziale: <b style="color:#2ecc71;">${vincita_potenziale}€</b></li>`;
+            });
             
-            // AGGIORNAMENTO STORICO CON QUOTE VINCITRICI
+            // AGGIORNAMENTO STORICO CON ULTIMO CAVALLO
             if(s.history.length > 0) {
                 const ult = s.history[s.history.length - 1];
                 document.getElementById('storico-podio').innerHTML = `
                     <span style="color:gold;">1° ${ult.primo}</span> <b style="color:white;">(Q: ${ult.q_primo})</b><br>
                     <span style="color:silver;">2° ${ult.secondo}</span><br>
                     <span style="color:#cd7f32;">3° ${ult.terzo}</span><br>
+                    <span style="color:#e74c3c; font-size:12px;">Ultimo: ${ult.ultimo} (Q: ${ult.q_ultimo})</span><br>
                     <hr style="border-color:#444; margin:8px 0;">
                     <span style="color:#2ecc71;"><b>Accoppiata:</b> ${ult.q_accoppiata}</span> | 
                     <span style="color:#e74c3c;"><b>Trio:</b> ${ult.q_trio}</span>
@@ -354,7 +358,11 @@
                 }
             });
 
-            ['acc-h1','acc-h2','trio-h1','trio-h2','trio-h3'].forEach(id => { if(document.getElementById(id).innerHTML === "") document.getElementById(id).innerHTML = opts; });
+            // FIX MENU TENDINA: Si aggiorna brutalmente ad ogni chiamata!
+            ['acc-h1','acc-h2','trio-h1','trio-h2','trio-h3'].forEach(id => { 
+                document.getElementById(id).innerHTML = opts; 
+            });
+            
             r.horses.forEach(h => calcSingola(h.id)); calcAccoppiata(); calcTrio();
             
             if(r.status === "waiting") {
