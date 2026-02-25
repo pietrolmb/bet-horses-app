@@ -11,7 +11,14 @@ from flask_socketio import SocketIO, emit
 from pymongo import MongoClient
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+# Sostituisci la vecchia riga di socketio con questa:
+socketio = SocketIO(
+    app, 
+    cors_allowed_origins="*", 
+    async_mode='eventlet', 
+    ping_timeout=60,      # Aspetta fino a 60 secondi prima di dare errore
+    ping_interval=25,     # Manda un segnale di "sono vivo" ogni 25 secondi
+    manage_session=False
 
 # ==========================================
 # CONNESSIONE AL DATABASE MONGODB
