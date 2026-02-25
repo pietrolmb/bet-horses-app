@@ -1,13 +1,30 @@
 import random
 import math
 import eventlet
+import certifi
 eventlet.monkey_patch()
 from flask import Flask, render_template
 from flask_socketio import SocketIO, emit
+from pymongo import MongoClient
 
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
+# ==========================================
+# CONNESSIONE AL DATABASE MONGODB
+# ==========================================
+MONGO_URI = "mongodb+srv://admin_corsa:Cavalli2026@cluster0.aapbbfp.mongodb.net/?appName=Cluster0"
+
+try:
+    client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
+    db = client['horse_racing_db']
+    print("✅ Connesso a MongoDB con successo!")
+except Exception as e:
+    print("❌ Errore di connessione a MongoDB:", e)
+
+# ==========================================
+# STRUTTURA DATI GLOBALE E SINCRONIZZAZIONE
+# ==========================================
 data = {
     "users": {},
     "online_users": [],
@@ -15,16 +32,69 @@ data = {
     "current_race": {"status": "waiting", "horses": [], "bets": [], "timer": 0},
     "history": [],
     "settings": {
-        "auto_timer": True, 
-        "max_bet_singola": 0.0, "max_bet_accoppiata": 0.0, "max_bet_trio": 0.0,
-        "timer_duration": 60,
-        "race_duration": 30, 
-        "min_horses": 6, "max_horses": 9,
+        "auto_timer": True, "max_bet_singola": 0.0, "max_bet_accoppiata": 0.0, "max_bet_trio": 0.0,
+        "timer_duration": 60, "race_duration": 30, "min_horses": 6, "max_horses": 9,
         "yt_wait_enable": True, "yt_wait_url": "L_LUpnjgPso", "yt_wait_start": 0, "yt_wait_end": 0,    
         "yt_race_enable": True, "yt_race_url": "XqEQJe1kRHA", "yt_race_start": 23, "yt_race_end": 0,   
         "yt_win_enable": True, "yt_win_url": "E3m-XH1Kij0",  "yt_win_start": 54, "yt_win_end": 65     
     }
 }
+
+# CARICAMENTO INIZIALE DAL DATABASE
+def carica_dati_da_db():
+    global data
+    
+    # Carica Impostazioni
+    db_settings = db.settings.find_one({"_id": "global"})
+    if db_settings:
+        db_settings.pop("_id", None)
+        data["settings"].update(db_settings)
+    else:
+        db.settings.insert_one({"_id": "global", **data["settings"]})
+        
+    # Carica Statistiche Admin
+    db_stats = db.admin_stats.find_one({"_id": "global"})
+    if db_stats:
+        db_stats.pop("_id", None)
+        data["admin_stats"].update(db_stats)
+    else:
+        db.admin_stats.insert_one({"_id": "global", **data["admin_stats"]})
+        
+    # Carica Utenti
+    for u in db.users.find():
+        data["users"][u["_id"]] = {
+            "wallet": u.get("wallet", 0.0),
+            "password": u.get("password", "1234"),
+            "tot_dep": u.get("tot_dep", 0.0),
+            "tot_vin": u.get("tot_vin", 0.0),
+            "tot_per": u.get("tot_per", 0.0)
+        }
+        
+    # Carica Storico (Ultime 20 gare per non appesantire la ram)
+    storico_db = list(db.history.find().sort("gara_num", -1).limit(20))
+    for h in storico_db:
+        h.pop("_id", None)
+    data["history"] = storico_db[::-1] # Li rimette in ordine cronologico
+
+carica_dati_da_db()
+
+# FUNZIONI DI SALVATAGGIO RAPIDO
+def salva_utente(username):
+    db.users.update_one({"_id": username}, {"$set": data["users"][username]}, upsert=True)
+
+def elimina_utente_db(username):
+    db.users.delete_one({"_id": username})
+
+def salva_settings():
+    db.settings.update_one({"_id": "global"}, {"$set": data["settings"]}, upsert=True)
+
+def salva_stats():
+    db.admin_stats.update_one({"_id": "global"}, {"$set": data["admin_stats"]}, upsert=True)
+
+def salva_storico(risultato):
+    db_res = risultato.copy()
+    db.history.insert_one(db_res)
+
 
 NOMI_A = ["Western", "Più Forte", "Lord", "Stud", "National", "Golden", "Pocket", "Diamond", "Wild", "Cowboy"]
 NOMI_B = ["Smoke", "Non Si Può", "Lester", "Muffin", "Pride", "Thunder", "Rocket", "Delight", "Man", "King"]
@@ -38,17 +108,14 @@ def genera_nuova_corsa():
     horses = []
     nomi = random.sample([f"{a} {b}" for a in NOMI_A for b in NOMI_B], num)
     
-    # LA NUOVA REGOLA DEI FAVORITI: 
-    # Esattamente 2 super-favoriti, un gruppo solido di sfidanti medi, e il resto outsider.
-    # Questo garantisce adrenalina e protegge il banco dalle accoppiate scontate.
     num_fav = 2
     num_mid = max(2, num // 2 - 1)
     num_out = num - num_fav - num_mid
     
     weights = []
-    for _ in range(num_fav): weights.append(random.uniform(90, 140))  # I 2 Favoriti
-    for _ in range(num_mid): weights.append(random.uniform(40, 75))   # Gli Inseguitori (Rompiscatole)
-    for _ in range(num_out): weights.append(random.uniform(10, 30))   # Gli Outsider
+    for _ in range(num_fav): weights.append(random.uniform(90, 140))
+    for _ in range(num_mid): weights.append(random.uniform(40, 75))
+    for _ in range(num_out): weights.append(random.uniform(10, 30))
             
     random.shuffle(weights) 
     tot_w = sum(weights)
@@ -58,7 +125,7 @@ def genera_nuova_corsa():
     tot_inv = sum(inv_weights)
     p_ultimo = [iw / tot_inv for iw in inv_weights]
     
-    house_edge = 1.35 # Lavagna Banco al 35% (Vantaggio gigantesco per la ricevitoria)
+    house_edge = 1.35 
 
     for i in range(num):
         q_v = max(1.05, round(1 / (p_vittoria[i] * house_edge), 2))
@@ -102,6 +169,8 @@ def handle_wallet(req):
         
     data["users"][user]["wallet"] = round(data["users"][user]["wallet"] + amount, 2)
     if amount > 0: data["users"][user]["tot_dep"] += amount 
+    
+    salva_utente(user) # Salva su Database
     socketio.emit('update_data', data)
 
 @socketio.on('admin_delete_user')
@@ -111,6 +180,7 @@ def admin_delete_user(req):
         del data["users"][user]
         if user in data["online_users"]:
             data["online_users"].remove(user)
+        elimina_utente_db(user) # Elimina da Database
         socketio.emit('update_data', data)
 
 @socketio.on('user_delete_self')
@@ -120,6 +190,7 @@ def user_delete_self(req):
         del data["users"][user]
         if user in data["online_users"]:
             data["online_users"].remove(user)
+        elimina_utente_db(user) # Elimina da Database
         socketio.emit('update_data', data)
 
 @socketio.on('admin_update_settings')
@@ -127,6 +198,7 @@ def update_settings(req):
     for key in req:
         if key in data["settings"]:
             data["settings"][key] = type(data["settings"][key])(req[key])
+    salva_settings() # Salva su Database
     socketio.emit('update_data', data)
 
 @socketio.on('admin_force_start')
@@ -178,6 +250,9 @@ def handle_bet(bet_data):
         data["users"][user]["tot_per"] += importo 
         data["admin_stats"]["totale_incassato"] = round(data["admin_stats"]["totale_incassato"] + importo, 2)
         
+        salva_utente(user) # Salva su DB
+        salva_stats() # Salva su DB
+        
         race["bets"].append({
             "user": user, "type": tipo, "dettaglio": dettaglio, "amount": importo, "quota": quota,
             "h1": bet_data.get('h1'), "h2": bet_data.get('h2'), "h3": bet_data.get('h3'), "ordine": bet_data.get('ordine', True),
@@ -211,7 +286,6 @@ def start_race():
     cavalli_rimasti = race["horses"].copy()
     ordine_arrivo = []
     
-    # LA ROULETTE DEL BANCO (La matematica che ti protegge)
     while cavalli_rimasti:
         pesi = [h["prob_vittoria"] for h in cavalli_rimasti]
         totale_pesi = sum(pesi)
@@ -270,6 +344,7 @@ def start_race():
     
     vincitori_gara = []
     totale_pagato_gara = 0.0
+    utenti_modificati = set()
     
     for bet in race["bets"]:
         vinto = False
@@ -290,18 +365,28 @@ def start_race():
             data["users"][bet["user"]]["tot_per"] -= bet["amount"] 
             totale_pagato_gara += vincita
             vincitori_gara.append({"user": bet["user"], "vincita": vincita, "dettaglio": bet["dettaglio"]})
+            utenti_modificati.add(bet["user"])
         else:
             bet["esito"] = "Persa"
             
     data["admin_stats"]["totale_pagato"] = round(data["admin_stats"]["totale_pagato"] + totale_pagato_gara, 2)
     data["admin_stats"]["bilancio"] = round(data["admin_stats"]["totale_incassato"] - data["admin_stats"]["totale_pagato"], 2)
     
+    # Salva Database Multiplo a fine gara
+    salva_stats()
+    for u in utenti_modificati:
+        salva_utente(u)
+    
+    # DB: Recupera l'ultimo numero di gara assoluto dal DB per la sequenza esatta
+    last_db_race = db.history.find_one({}, sort=[("gara_num", -1)])
+    next_num = (last_db_race["gara_num"] + 1) if last_db_race else 1
+    
     q1 = ordine_arrivo[0]["quota_v"]
     q2 = ordine_arrivo[1]["quota_v"]
     q3 = ordine_arrivo[2]["quota_v"]
     
     risultato = {
-        "gara_num": len(data["history"]) + 1,
+        "gara_num": next_num,
         "primo_id": id_1, "primo_nome": ordine_arrivo[0]["nome"],
         "primo": f"N°{id_1} - {ordine_arrivo[0]['nome']}", "q_primo": q1,
         "secondo": f"N°{id_2} - {ordine_arrivo[1]['nome']}",
@@ -310,7 +395,12 @@ def start_race():
         "q_accoppiata": round(q1 * q2, 2), "q_trio": round(q1 * q2 * q3, 2),
         "vincitori": vincitori_gara, "scommesse": race["bets"].copy() 
     }
+    
+    salva_storico(risultato) # Salva su DB
+    
     data["history"].append(risultato)
+    if len(data["history"]) > 20: 
+        data["history"].pop(0) # Mantiene leggera la RAM
     
     socketio.emit('race_finished', risultato)
     socketio.sleep(8) 
