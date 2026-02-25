@@ -1,3 +1,4 @@
+import os
 import random
 import math
 import eventlet
@@ -11,9 +12,19 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
 
 # ==========================================
-# CONNESSIONE AL DATABASE MONGODB
+# CONNESSIONE AL DATABASE MONGODB (SICURA)
 # ==========================================
-MONGO_URI = "mongodb+srv://admin_corsa:Cavalli2026@cluster0.aapbbfp.mongodb.net/?appName=Cluster0"
+# Ora il codice legge la password dal cassetto segreto di Render!
+MONGO_URI = os.environ.get("MONGO_URI")
+
+try:
+    client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
+    db = client['horse_racing_db']
+    print("✅ Connesso a MongoDB con successo!")
+except Exception as e:
+    print("❌ Errore di connessione a MongoDB:", e)
+
+# ... (TUTTO IL RESTO DEL CODICE RIMANE IDENTICO, LASCIALO COSÌ) ...
 
 try:
     client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
