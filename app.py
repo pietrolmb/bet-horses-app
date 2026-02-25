@@ -19,7 +19,7 @@ socketio = SocketIO(
     ping_timeout=60,      # Aspetta fino a 60 secondi prima di dare errore
     ping_interval=25,     # Manda un segnale di "sono vivo" ogni 25 secondi
     manage_session=False
-
+)
 # ==========================================
 # CONNESSIONE AL DATABASE MONGODB
 # ==========================================
