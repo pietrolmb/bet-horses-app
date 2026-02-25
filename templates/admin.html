@@ -34,10 +34,12 @@
         .traguardo { position: absolute; bottom: 0; left: 50%; width: 4px; height: 45px; background: red; transform: translateX(-50%);}
         .cavallo { width: 14px; height: 14px; border-radius: 50%; position: absolute; border: 1px solid #fff; font-size: 8px; font-weight: bold; color: black; display: flex; align-items: center; justify-content: center; z-index: 20; transition: all 0.12s linear;}
         
-        /* ETICHETTE STORICO */
+        /* ETICHETTE E TASTI */
         .esito-vinta { color: #fff; background: #27ae60; padding: 3px 6px; border-radius: 4px; font-weight: bold; font-size: 12px;}
         .esito-persa { color: #fff; background: #e74c3c; padding: 3px 6px; border-radius: 4px; font-weight: bold; font-size: 12px;}
         .esito-attesa { color: #333; background: #f1c40f; padding: 3px 6px; border-radius: 4px; font-weight: bold; font-size: 12px;}
+        .btn-delete-user { background: #e74c3c; padding: 5px 10px; font-size: 12px; margin-left: 10px;}
+        .btn-delete-user:hover { background: #c0392b;}
     </style>
 </head>
 <body>
@@ -85,7 +87,7 @@
                         <option value="false">✋ Manuale: La gara parte solo cliccando "Forza Partenza"</option>
                     </select>
 
-                    <p style="margin-top:0;"><b>Limiti Puntata Massima (€) - Metti 0 per Nessun Limite</b></p>
+                    <p style="margin-top:0;"><b>Limiti Puntata Massima (€) - Metti 0 per Infiniti</b></p>
                     Singola: <input type="number" id="max-s" style="width:60px;"> 
                     Accoppiata: <input type="number" id="max-a" style="width:60px;"> 
                     Trio: <input type="number" id="max-t" style="width:60px;">
@@ -169,6 +171,13 @@
                 document.getElementById('imp').value = "";
             } else { alert("Inserisci utente e importo!"); }
         }
+
+        // Elimina utente dal database (Tasto Admin)
+        function cancellaUtente(nomeUtente) {
+            if(confirm(`Sei sicuro di voler ELIMINARE l'utente ${nomeUtente} in via definitiva?`)) {
+                socket.emit('admin_delete_user', {user: nomeUtente});
+            }
+        }
         
         function salvaSetts() { 
             const ext = (v) => { const m = v.match(/(?:v=|youtu\.be\/)([^&]+)/); return m ? m[1] : v; };
@@ -209,13 +218,19 @@
             document.getElementById('pag').innerText = parseFloat(s.admin_stats.totale_pagato).toFixed(2);
             document.getElementById('util').innerText = parseFloat(s.admin_stats.bilancio).toFixed(2);
             
-            // Tabella Utenti
+            // Tabella Utenti (con tasto Elimina)
             const tbU = document.querySelector('#tab-utenti tbody'); 
             tbU.innerHTML = "";
             for(let n in s.users){ 
                 let u = s.users[n]; 
                 const onl = s.online_users.includes(n) ? "🟢" : "⚪";
-                tbU.innerHTML += `<tr><td><b>${n}</b> ${onl}</td><td><b style="color:green;">${u.wallet.toFixed(2)}€</b></td><td>${u.tot_dep.toFixed(2)}€</td><td><span style="color:#27ae60;">+${u.tot_vin.toFixed(2)}€</span></td><td><span style="color:#c0392b;">-${u.tot_per.toFixed(2)}€</span></td></tr>`; 
+                tbU.innerHTML += `<tr>
+                    <td><b>${n}</b> ${onl} <button class="btn-delete-user" onclick="cancellaUtente('${n}')">🗑️</button></td>
+                    <td><b style="color:green;">${u.wallet.toFixed(2)}€</b></td>
+                    <td>${u.tot_dep.toFixed(2)}€</td>
+                    <td><span style="color:#27ae60;">+${u.tot_vin.toFixed(2)}€</span></td>
+                    <td><span style="color:#c0392b;">-${u.tot_per.toFixed(2)}€</span></td>
+                </tr>`; 
             }
             
             // Tabella Scommesse in Corso
@@ -234,10 +249,12 @@
                 let html = `<div style="background:white; border:1px solid #ccc; margin-bottom:10px; padding:15px; border-radius:5px;">
                             <h4 style="margin-top:0; margin-bottom:5px; color:#2c3e50;">🏁 Gara N°${h.gara_num}</h4>
                             <p style="font-size:13px; margin-top:0; margin-bottom:10px;">
-                                <span style="color:gold; font-weight:bold;">1° ${h.primo}</span> | 
+                                <span style="color:gold; font-weight:bold;">1° ${h.primo}</span> (Q: ${h.q_primo}) | 
                                 <span style="color:silver; font-weight:bold;">2° ${h.secondo}</span> | 
                                 <span style="color:#cd7f32; font-weight:bold;">3° ${h.terzo}</span><br>
-                                <small>Ultimo: ${h.ultimo}</small>
+                                <small>Ultimo: ${h.ultimo} (Q: ${h.q_ultimo})</small><br>
+                                <span style="color:#2ecc71;"><b>Accoppiata:</b> ${h.q_accoppiata}</span> | 
+                                <span style="color:#e74c3c;"><b>Trio:</b> ${h.q_trio}</span>
                             </p>
                             <ul style="font-size:13px; padding-left:20px; margin-bottom:0;">`;
                 if(h.scommesse.length === 0) html += "<li>Nessuna scommessa registrata.</li>";
@@ -265,7 +282,7 @@
                 document.getElementById('y-v-e').checked = s.settings.yt_win_enable; document.getElementById('y-v-u').value = s.settings.yt_win_url; document.getElementById('y-v-s').value = s.settings.yt_win_start; document.getElementById('y-v-end').value = s.settings.yt_win_end;
             }
             
-            // Creazione Pista (se in waiting e vuota)
+            // Creazione Pista Admin
             const pistaWrapper = document.getElementById('pista-wrapper');
             if(s.current_race.status === "waiting" && s.current_race.bets.length === 0) {
                 document.querySelectorAll('.cavallo').forEach(e => e.remove());
@@ -273,7 +290,7 @@
             }
             
             s.current_race.horses.forEach((h, index) => {
-                if(!cavalliElements[h.id] && s.current_race.status === "waiting") {
+                if(!cavalliElements[h.id]) {
                     const d = document.createElement('div'); 
                     d.className = 'cavallo'; 
                     d.style.backgroundColor = h.colore; 
@@ -281,7 +298,6 @@
                     pistaWrapper.appendChild(d); 
                     cavalliElements[h.id] = d;
                     
-                    // Ricalcolo pista dimezzato rispetto alla pagina utente
                     const centerX = 225; const centerY = 112.5; 
                     const laneX = 217.5 - (index * 3); const laneY = 105 - (index * 3);
                     const startX = centerX + laneX * Math.cos(Math.PI / 2);
@@ -297,7 +313,7 @@
             Object.keys(pos).forEach(id => {
                 const centerX = 225; const centerY = 112.5; 
                 let index = 0;
-                // Mappa correttamente l'indice
+                // Mappa l'indice corretto
                 for(let i=0; i<currentHorses.length; i++) {
                     if(currentHorses[i].id == id) { index = i; break; }
                 }
